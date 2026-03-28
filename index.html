@@ -2,8 +2,8 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TallyCloud Mobile</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>TallyPrime Mobile</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -11,13 +11,13 @@
     <div id="app">
         <header class="tally-header">
             <h1 id="screen-title">Select Company</h1>
-            <p id="screen-subtitle">Choose a business to manage</p>
+            <p id="screen-subtitle">TallyPrime Cloud Access</p>
         </header>
 
-        <main id="main-content">
-            <div id="loader" class="hidden">Loading...</div>
-            <div id="company-list"></div>
-        </main>
+        <div id="main-content">
+            <div id="company-list" class="list-container">
+                </div>
+        </div>
 
         <button id="fab" class="fab">+</button>
     </div>
