@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TallyCloud Mobile</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <div id="app">
+        <header class="tally-header">
+            <h1 id="screen-title">Select Company</h1>
+            <p id="screen-subtitle">Choose a business to manage</p>
+        </header>
+
+        <main id="main-content">
+            <div id="loader" class="hidden">Loading...</div>
+            <div id="company-list"></div>
+        </main>
+
+        <button id="fab" class="fab">+</button>
+    </div>
+
+    <script src="supabaseClient.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
