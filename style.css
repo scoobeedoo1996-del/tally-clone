@@ -52,3 +52,23 @@ body, html {
     font-size: 32px;
     box-shadow: 0 10px 15px -3px rgba(30, 58, 138, 0.4);
 }
+/* Form UI & Screen Switching */
+.screen { transition: 0.3s ease-in-out; }
+.hidden { display: none !important; }
+
+.header-nav { display: flex; align-items: center; gap: 15px; }
+.back-btn { background: none; border: none; color: white; font-size: 16px; padding: 0; cursor: pointer; }
+
+.form-container { padding: 20px; padding-bottom: 80px; }
+.section-title { font-size: 13px; font-weight: bold; color: var(--tally-primary); text-transform: uppercase; margin: 25px 0 10px 0; border-bottom: 1px solid #CBD5E1; padding-bottom: 5px; }
+
+.input-group { margin-bottom: 15px; display: flex; flex-direction: column; }
+.input-group label { font-size: 13px; color: #475569; margin-bottom: 5px; font-weight: 500; }
+.input-group input, .input-group textarea { padding: 12px; border: 1px solid #CBD5E1; border-radius: 8px; font-size: 15px; background: white; font-family: inherit; }
+.input-group input:focus, .input-group textarea:focus { border-color: var(--tally-primary); outline: none; }
+
+.row { display: flex; gap: 15px; }
+.half { flex: 1; }
+
+.submit-btn { width: 100%; padding: 15px; background-color: var(--tally-primary); color: white; border: none; border-radius: 10px; font-size: 18px; font-weight: bold; margin-top: 20px; box-shadow: 0 4px 6px rgba(30, 58, 138, 0.3); }
+.submit-btn:active { transform: scale(0.98); }
