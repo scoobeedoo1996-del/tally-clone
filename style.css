@@ -1,0 +1,51 @@
+:root {
+    --tally-blue: #1E3A8A;
+    --bg-gray: #F8FAFC;
+    --text-main: #1E293B;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: var(--bg-gray);
+    margin: 0;
+    color: var(--text-main);
+}
+
+.tally-header {
+    background-color: #FFF;
+    padding: 24px;
+    border-bottom: 1px solid #E2E8F0;
+}
+
+.company-card {
+    background: #FFF;
+    margin: 12px 16px;
+    padding: 16px;
+    border-radius: 12px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border: 1px solid transparent;
+    transition: 0.2s;
+}
+
+.company-card:active {
+    border-color: var(--tally-blue);
+    background-color: #EFF6FF;
+}
+
+.fab {
+    position: fixed;
+    bottom: 30px;
+    right: 20px;
+    width: 60px;
+    height: 60px;
+    border-radius: 30px;
+    background-color: var(--tally-blue);
+    color: white;
+    font-size: 30px;
+    border: none;
+    elevation: 5;
+    cursor: pointer;
+}
