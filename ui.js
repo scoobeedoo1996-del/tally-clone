@@ -66,3 +66,7 @@ function updateVoucherUI(type) {
         label.innerText = "Account (Cash/Bank)";
     }
 }
+function showDayBookScreen() {
+    hideAllScreens();
+    document.getElementById('daybook-screen').classList.remove('hidden');
+}
