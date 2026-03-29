@@ -19,7 +19,25 @@ function hideCreateScreen() {
     mainScreen.classList.remove('hidden');
     document.getElementById('create-company-form').reset();
 }
+let currentCompany = null;
 
+// Function to select and enter a company
+function selectCompany(companyId, companyName, period) {
+    currentCompany = { id: companyId, name: companyName };
+    
+    // Update Dashboard UI
+    document.getElementById('active-company-name').innerText = companyName;
+    
+    // Switch Screens
+    document.getElementById('main-screen').classList.add('hidden');
+    document.getElementById('dashboard-screen').classList.remove('hidden');
+}
+
+function exitCompany() {
+    currentCompany = null;
+    document.getElementById('dashboard-screen').classList.add('hidden');
+    document.getElementById('main-screen').classList.remove('hidden');
+}
 // ---- FETCH COMPANIES ----
 async function loadCompanies() {
     companyList.innerHTML = '<p>Loading businesses...</p>';
@@ -40,13 +58,13 @@ async function loadCompanies() {
     }
 
     companyList.innerHTML = data.map(company => `
-        <div class="company-card" onclick="alert('Opening Gateway of Tally for: ${company.name}')">
-            <div class="company-info">
-                <b>${company.name}</b>
-                <span>FY: ${company.financial_year_start} | ${company.state || 'N/A'}</span>
-            </div>
-            <div style="color: #CBD5E1;">❯</div>
-        </div>
+        <div class="company-card" onclick="selectCompany('${company.id}', '${company.name}')">
+    <div class="company-info">
+        <b>${company.name}</b>
+        <span>FY: ${company.financial_year_start}</span>
+    </div>
+    <div style="color: #CBD5E1;">❯</div>
+</div>
     `).join('');
 }
 
