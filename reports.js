@@ -118,24 +118,41 @@ async function loadLedgerStatement() {
     const ledgerId = document.getElementById('stmt_ledger_select').value;
     const startDate = document.getElementById('stmt_start_date').value;
     const endDate = document.getElementById('stmt_end_date').value;
-    
-    const tbody = document.getElementById('statement-body');
-    const tfoot = document.getElementById('statement-footer');
-    
     if (!ledgerId || !startDate || !endDate) return;
-    
-    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">Filtering records...</td></tr>';
 
-    // 1. Get Ledger Info
-    const { data: ledgerData } = await supabaseClient
+    // 1. Fetch Ledger Master Data
+    const { data: ledger } = await supabaseClient
         .from('ledgers')
         .select('opening_balance, opening_balance_type')
-        .eq('id', ledgerId)
-        .single();
+        .eq('id', ledgerId).single();
 
-    // 2. Optimized Query: Fetch only entries for THIS ledger within THIS period
-    // We join with 'vouchers' to filter by the voucher_date
-    const { data: entries, error } = await supabaseClient
+    // 2. Fetch ALL entries for this ledger BEFORE the startDate
+    const { data: prevEntries } = await supabaseClient
+        .from('voucher_entries')
+        .select('amount, is_debit, vouchers!inner(voucher_date)')
+        .eq('ledger_id', ledgerId)
+        .lt('vouchers.voucher_date', startDate);
+
+    // Calculate "Period Opening Balance"
+    let runningBal = parseFloat(ledger.opening_balance) || 0;
+    let isRunningDr = ledger.opening_balance_type === 'Dr';
+
+    prevEntries.forEach(e => {
+        if (e.is_debit === isRunningDr) {
+            runningBal += parseFloat(e.amount);
+        } else {
+            runningBal -= parseFloat(e.amount);
+            if (runningBal < 0) {
+                runningBal = Math.abs(runningBal);
+                isRunningDr = !isRunningDr;
+            }
+        }
+    });
+
+    const periodOpening = { amount: runningBal, type: isRunningDr ? 'Dr' : 'Cr' };
+
+    // 3. Fetch entries WITHIN the period (Your existing logic)
+    const { data: currentEntries } = await supabaseClient
         .from('voucher_entries')
         .select(`
             amount, is_debit,
@@ -146,118 +163,78 @@ async function loadLedgerStatement() {
         .lte('vouchers.voucher_date', endDate)
         .order('vouchers(voucher_date)', { ascending: true });
 
-    if (error) {
-        console.error("Statement Error:", error);
-        return;
-    }
-
-    // 3. For "Particulars", we need the OTHER side of these vouchers
-    // We fetch all entries related to the vouchers we just found
-    const vIds = entries.map(e => e.vouchers.id);
-    const { data: allRelatedEntries } = await supabaseClient
+    // Fetch related ledger names for "Particulars"
+    const vIds = currentEntries.map(e => e.vouchers.id);
+    const { data: relatives } = await supabaseClient
         .from('voucher_entries')
-        .select('voucher_id, ledger_id, ledgers(name)')
+        .select('voucher_id, ledgers(name)')
         .in('voucher_id', vIds)
-        .neq('ledger_id', ledgerId); // Get the "Opposite" ledger
+        .neq('ledger_id', ledgerId);
 
-    // 4. Transform data for the render function
-    const formattedVouchers = entries.map(e => {
-        const opposite = allRelatedEntries.find(re => re.voucher_id === e.vouchers.id);
+    const formattedVouchers = currentEntries.map(e => {
+        const other = relatives.find(r => r.voucher_id === e.vouchers.id);
         return {
-            voucher_date: e.vouchers.voucher_date,
-            voucher_type: e.vouchers.voucher_type,
-            voucher_number: e.vouchers.voucher_number,
-            voucher_entries: [
-                { ledger_id: ledgerId, is_debit: e.is_debit, amount: e.amount },
-                { ledger_id: 'other', ledgers: { name: opposite ? opposite.ledgers.name : 'Unknown' } }
-            ]
+            ...e.vouchers,
+            myEntry: { is_debit: e.is_debit, amount: e.amount },
+            particulars: other ? other.ledgers.name : 'Unknown'
         };
     });
 
-    renderStatementTable(ledgerData, formattedVouchers, ledgerId);
+    renderTallyStyleTable(periodOpening, formattedVouchers);
 }
-
-function renderStatementTable(ledgerData, vouchers, targetLedgerId) {
+function renderTallyStyleTable(opening, vouchers) {
     const tbody = document.getElementById('statement-body');
     const tfoot = document.getElementById('statement-footer');
     
-    let totalDebit = 0;
-    let totalCredit = 0;
+    let curDebit = 0;
+    let curCredit = 0;
 
-    // Process Opening Balance
-    let opBal = parseFloat(ledgerData.opening_balance) || 0;
-    let isOpDebit = ledgerData.opening_balance_type === 'Dr';
-    
-    if (opBal > 0) {
-        if (isOpDebit) totalDebit += opBal; else totalCredit += opBal;
-    }
-
-    let rowsHtml = `
+    // Opening Balance Row
+    let html = `
         <tr class="balance-row">
-            <td></td>
-            <td><b>Opening Balance</b></td>
-            <td></td>
-            <td></td>
-            <td class="text-right">${isOpDebit && opBal > 0 ? opBal.toFixed(2) : ''}</td>
-            <td class="text-right">${!isOpDebit && opBal > 0 ? opBal.toFixed(2) : ''}</td>
+            <td>${document.getElementById('stmt_start_date').value}</td>
+            <td colspan="3"><b>Opening Balance</b></td>
+            <td class="text-right">${opening.type === 'Dr' ? opening.amount.toFixed(2) : ''}</td>
+            <td class="text-right">${opening.type === 'Cr' ? opening.amount.toFixed(2) : ''}</td>
         </tr>
     `;
 
-    // Process Transactions
+    // Transaction Rows
     vouchers.forEach(v => {
-        // Find the entry for OUR target ledger
-        const myEntry = v.voucher_entries.find(e => e.ledger_id === targetLedgerId);
-        // Find the "other" side of the entry (Particulars)
-        const otherEntry = v.voucher_entries.find(e => e.ledger_id !== targetLedgerId) || v.voucher_entries[0];
-        
-        const amount = parseFloat(myEntry.amount);
-        let drAmount = '', crAmount = '';
+        const dr = v.myEntry.is_debit ? v.myEntry.amount : 0;
+        const cr = !v.myEntry.is_debit ? v.myEntry.amount : 0;
+        curDebit += dr;
+        curCredit += cr;
 
-        if (myEntry.is_debit) {
-            drAmount = amount.toFixed(2);
-            totalDebit += amount;
-        } else {
-            crAmount = amount.toFixed(2);
-            totalCredit += amount;
-        }
-
-        // Tally formatting: If we are Debited, the other account is Credited (Starts with "To")
-        // If we are Credited, the other account is Debited (Starts with "By")
-        const prefix = myEntry.is_debit ? "To " : "By ";
-
-        rowsHtml += `
+        html += `
             <tr>
                 <td>${v.voucher_date}</td>
-                <td>${prefix} <b>${otherEntry.ledgers.name}</b></td>
+                <td>${v.myEntry.is_debit ? 'To' : 'By'} <b>${v.particulars}</b></td>
                 <td>${v.voucher_type}</td>
                 <td>${v.voucher_number}</td>
-                <td class="text-right">${drAmount}</td>
-                <td class="text-right">${crAmount}</td>
+                <td class="text-right">${dr > 0 ? dr.toFixed(2) : ''}</td>
+                <td class="text-right">${cr > 0 ? cr.toFixed(2) : ''}</td>
             </tr>
         `;
     });
+    tbody.innerHTML = html;
 
-    tbody.innerHTML = rowsHtml;
-
-    // Calculate Closing Balance
-    let closingBal = Math.abs(totalDebit - totalCredit);
-    let closingType = totalDebit > totalCredit ? 'Dr' : 'Cr';
-    
-    // To balance the footer visually, we put the closing balance on the "lighter" side
-    let drFooterBal = totalDebit < totalCredit ? closingBal.toFixed(2) : '';
-    let crFooterBal = totalCredit < totalDebit ? closingBal.toFixed(2) : '';
-    let grandTotal = Math.max(totalDebit, totalCredit).toFixed(2);
+    // Footer Calculation
+    const totalDr = (opening.type === 'Dr' ? opening.amount : 0) + curDebit;
+    const totalCr = (opening.type === 'Cr' ? opening.amount : 0) + curCredit;
+    const closingAmt = Math.abs(totalDr - totalCr);
+    const closingType = totalDr > totalCr ? 'Dr' : 'Cr';
 
     tfoot.innerHTML = `
+        <tr class="total-row">
+            <th colspan="4" class="text-right">Current Total:</th>
+            <th class="text-right">${curDebit.toFixed(2)}</th>
+            <th class="text-right">${curCredit.toFixed(2)}</th>
+        </tr>
         <tr class="balance-row">
             <th colspan="4" class="text-right">Closing Balance (${closingType}):</th>
-            <th class="text-right">${drFooterBal}</th>
-            <th class="text-right">${crFooterBal}</th>
-        </tr>
-        <tr>
-            <th colspan="4" class="text-right">Total:</th>
-            <th class="text-right fw-bold">${grandTotal}</th>
-            <th class="text-right fw-bold">${grandTotal}</th>
+            <th class="text-right">${closingType === 'Dr' ? closingAmt.toFixed(2) : ''}</th>
+            <th class="text-right">${closingType === 'Cr' ? closingAmt.toFixed(2) : ''}</th>
         </tr>
     `;
 }
