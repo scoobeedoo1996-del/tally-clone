@@ -89,6 +89,7 @@ async function handleVoucherSubmit(e) {
         return alert("Please fill all required fields correctly.");
     }
     if (vMainLedger === vPartLedger) {
+    btn.disabled = false; // Re-enable so they can fix it
     return alert("Main Account and Particulars cannot be the same ledger.");
     }
     btn.disabled = true;
