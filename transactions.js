@@ -1,4 +1,21 @@
 // transactions.js - Adaptive Voucher Logic
+async function getNextVoucherNumber(type) {
+    if (!currentCompany) return 1;
+    
+    const { data, error } = await supabaseClient
+        .from('vouchers')
+        .select('voucher_number')
+        .eq('company_id', currentCompany.id)
+        .eq('voucher_type', type)
+        .order('voucher_number', { ascending: false })
+        .limit(1);
+
+    if (error || !data || data.length === 0) return 1;
+    
+    // Convert to number and add 1
+    const lastNumber = parseInt(data[0].voucher_number);
+    return isNaN(lastNumber) ? 1 : lastNumber + 1;
+}
 async function loadVoucherLedgers(type) {
     const mainSelect = document.getElementById('v_main_account');
     const partSelect = document.getElementById('v_particular_ledger');
@@ -51,7 +68,8 @@ async function handleVoucherSubmit(e) {
     const vMainLedger = document.getElementById('v_main_account').value;
     const vPartLedger = document.getElementById('v_particular_ledger').value;
     const vAmount = parseFloat(document.getElementById('v_amount').value);
-
+    const vNumber = parseInt(document.getElementById('v_number').value) || 1;
+    
     if (!vDate || !vMainLedger || !vPartLedger || isNaN(vAmount)) {
         return alert("Please fill all required fields correctly.");
     }
@@ -63,7 +81,7 @@ async function handleVoucherSubmit(e) {
         company_id: currentCompany.id,
         voucher_type: currentVoucherType,
         voucher_date: vDate, // Fixed: Matched to your screenshot
-        voucher_number: document.getElementById('v_number').value,
+        voucher_number: vNumber,
         narration: document.getElementById('v_narration').value
     }]).select();
 
