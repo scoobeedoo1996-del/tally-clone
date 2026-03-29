@@ -49,12 +49,12 @@ async function handleVoucherSubmit(e) {
     btn.disabled = true;
 
     const amount = parseFloat(document.getElementById('v_amount').value);
-    const voucherDate = document.getElementById('v_date').value;
+    const voucher_Date = document.getElementById('v_date').value;
     // 1. Header
     const { data: v, error: vErr } = await supabaseClient.from('vouchers').insert([{
         company_id: currentCompany.id,
         voucher_type: currentVoucherType,
-        date: voucherDate,
+        date: voucher_Date,
         voucher_number: document.getElementById('v_number').value,
         narration: document.getElementById('v_narration').value
     }]).select();
