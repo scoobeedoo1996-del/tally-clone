@@ -256,6 +256,36 @@
     <div id="daybook-list" class="report-list-container">
         </div>
 </div>
+    <div id="statement-screen" class="screen hidden">
+    <header class="tally-header bg-dark">
+        <button class="back-btn" onclick="showDashboard()">❮ Back</button>
+        <h1>Ledger Statement</h1>
+    </header>
+    
+    <div class="report-controls">
+        <label for="stmt_ledger_select">Account: </label>
+        <select id="stmt_ledger_select" onchange="loadLedgerStatement()"></select>
+    </div>
+
+    <div class="statement-container">
+        <table class="tally-table">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Particulars</th>
+                    <th>Vch Type</th>
+                    <th>Vch No.</th>
+                    <th class="text-right">Debit</th>
+                    <th class="text-right">Credit</th>
+                </tr>
+            </thead>
+            <tbody id="statement-body">
+                </tbody>
+            <tfoot id="statement-footer">
+                </tfoot>
+        </table>
+    </div>
+</div>
     </div>
 
 <script src="supabaseClient.js?v=2"></script>
