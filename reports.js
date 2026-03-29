@@ -1,58 +1,77 @@
-// reports.js - Day Book & Statement Logic
+// reports.js - Handling Day Book and Financial Statements
 
 async function openDayBook() {
-    showDayBookScreen();
-    document.getElementById('daybook-date-filter').valueAsDate = new Date();
-    await loadDayBook();
+    hideAllScreens();
+    document.getElementById('daybook-screen').classList.remove('hidden');
+    // Default to today's date
+    document.getElementById('db_date_filter').valueAsDate = new Date();
+    await loadDayBookData();
 }
 
-async function loadDayBook() {
-    const list = document.getElementById('daybook-list');
-    const selectedDate = document.getElementById('daybook-date-filter').value;
-    
-    list.innerHTML = '<p class="loading-text">Loading transactions...</p>';
+function hideDayBookScreen() {
+    showDashboard();
+}
 
-    // Fetch vouchers and include their entries/ledgers
+async function loadDayBookData() {
+    const listContainer = document.getElementById('daybook-list');
+    const filterDate = document.getElementById('db_date_filter').value;
+    
+    listContainer.innerHTML = '<p style="text-align:center; padding: 20px;">Loading transactions...</p>';
+
+    if (!currentCompany) return;
+
+    // Fetch Vouchers AND their nested entries and ledger names in one query
     const { data, error } = await supabaseClient
         .from('vouchers')
         .select(`
-            id, voucher_type, voucher_number, date, narration,
-            voucher_entries (
-                amount, entry_type,
-                ledgers ( name )
-            )
+            id, voucher_type, voucher_number, voucher_date, narration,
+            voucher_entries ( amount, is_debit, ledgers ( name ) )
         `)
         .eq('company_id', currentCompany.id)
-        .eq('date', selectedDate)
+        .eq('voucher_date', filterDate)
         .order('created_at', { ascending: false });
 
     if (error) {
-        list.innerHTML = '<p>Error loading Day Book.</p>';
+        console.error("Day Book Error:", error);
+        listContainer.innerHTML = `<p style="color:red; text-align:center;">Failed to load data: ${error.message}</p>`;
         return;
     }
 
-    if (data.length === 0) {
-        list.innerHTML = '<p class="empty-text">No transactions found for this date.</p>';
+    if (!data || data.length === 0) {
+        listContainer.innerHTML = '<p style="text-align:center; padding: 20px; color: #64748b;">No transactions found for this date.</p>';
         return;
     }
 
-    list.innerHTML = data.map(v => {
-        // Find the main ledger (usually the first Debit entry in Tally view)
-        const mainEntry = v.voucher_entries.find(e => e.entry_type === 'Debit') || v.voucher_entries[0];
-        const colorClass = `text-${v.voucher_type.toLowerCase()}`;
+    // Generate HTML for each voucher
+    let html = data.map(v => {
+        // Tally Logic: Determine which ledger to display as the "Primary" name
+        // For Receipts/Sales, the primary party is Credited (is_debit = false)
+        // For Payments/Purchases, the primary party is Debited (is_debit = true)
+        let displayEntry;
+        if (['Receipt', 'Sales'].includes(v.voucher_type)) {
+            displayEntry = v.voucher_entries.find(e => e.is_debit === false) || v.voucher_entries[0];
+        } else {
+            displayEntry = v.voucher_entries.find(e => e.is_debit === true) || v.voucher_entries[0];
+        }
+
+        const ledgerName = (displayEntry && displayEntry.ledgers) ? displayEntry.ledgers.name : 'Unknown Ledger';
+        const amount = (displayEntry) ? displayEntry.amount : 0;
+        const colorClass = `type-${v.voucher_type.toLowerCase()}`;
 
         return `
-            <div class="daybook-card">
-                <div class="db-row">
-                    <span class="db-ledger">${mainEntry.ledgers.name}</span>
+            <div class="db-card" style="border-left-color: var(--${v.voucher_type.toLowerCase()}-color, #64748b);">
+                <div class="db-row db-header">
+                    <span class="db-ledger">${ledgerName}</span>
+                    <span class="db-amount">₹ ${parseFloat(amount).toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>
+                </div>
+                <div class="db-row db-sub">
                     <span class="db-type ${colorClass}">${v.voucher_type}</span>
+                    <span class="db-vno">Vch No: ${v.voucher_number}</span>
                 </div>
-                <div class="db-row">
-                    <span class="db-no">No. ${v.voucher_number}</span>
-                    <span class="db-amount">₹ ${mainEntry.amount.toLocaleString('en-IN')}</span>
-                </div>
-                ${v.narration ? `<div class="db-narration">${v.narration}</div>` : ''}
+                ${v.narration ? `<div class="db-narration">Narration: ${v.narration}</div>` : ''}
             </div>
         `;
     }).join('');
+
+    listContainer.innerHTML = html;
 }
