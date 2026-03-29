@@ -341,37 +341,33 @@ async function loadPLStatement() {
     const container = document.getElementById('pl-content');
 
     if (!start || !end) return;
-    container.innerHTML = "Calculating Profit & Loss...";
+    container.innerHTML = "<div style='padding: 20px;'>Calculating Profit & Loss...</div>";
 
-    // 1. Fetch Ledgers with their Group names
-    const { data: ledgers } = await supabaseClient
+    // 1. Fetch Ledgers (Removed 'nature' to avoid database errors if column is missing)
+    const { data: ledgers, error: ledgersErr } = await supabaseClient
         .from('ledgers')
-        .select('id, name, opening_balance, opening_balance_type, groups(name, nature)')
-        .eq('company_id', currentCompany.id);
+        .select('id, name, groups(name)')
+        .eq('company_id', currentCompany?.id || currentCompany);
 
-    // 2. Fetch Voucher Entries in period
-    const { data: entries } = await supabaseClient
+    if (ledgersErr) {
+        console.error("P&L Ledger Fetch Error:", ledgersErr);
+        container.innerHTML = `<div style="color:red; padding:20px;">Error fetching ledgers. Check console.</div>`;
+        return;
+    }
+
+    // 2. Fetch Entries
+    const { data: entries, error: entriesErr } = await supabaseClient
         .from('voucher_entries')
         .select('ledger_id, amount, is_debit, vouchers!inner(voucher_date)')
         .gte('vouchers.voucher_date', start)
         .lte('vouchers.voucher_date', end);
 
-    // 3. Helper to calculate a single ledger's net movement
-    const getBalance = (ledger) => {
-        let bal = 0; 
-        const myEntries = entries.filter(e => e.ledger_id === ledger.id);
-        myEntries.forEach(e => {
-            // For P&L (Income/Expense), we usually just look at current movement
-            // Income: Credit increases, Debit decreases
-            // Expense: Debit increases, Credit decreases
-            const isRevenueNature = ['Income', 'Sales'].includes(ledger.groups.nature);
-            if (e.is_debit === (isRevenueNature ? false : true)) bal += parseFloat(e.amount);
-            else bal -= parseFloat(e.amount);
-        });
-        return bal;
-    };
+    if (entriesErr) {
+        console.error("P&L Entries Fetch Error:", entriesErr);
+        return;
+    }
 
-    // 4. Categorize and Calculate
+    // 3. Setup Categories
     const categories = {
         directIncome: { label: "Sales & Direct Incomes", total: 0, items: [] },
         directExpense: { label: "Purchases & Direct Expenses", total: 0, items: [] },
@@ -379,27 +375,52 @@ async function loadPLStatement() {
         indirectExpense: { label: "Indirect Expenses", total: 0, items: [] }
     };
 
+    // 4. Calculate logic with flexible group names
     ledgers.forEach(l => {
-        const bal = getBalance(l);
-        if (bal === 0) return;
+        const groupName = l.groups?.name || '';
+        
+        // Find all entries for this specific ledger
+        const myEntries = entries.filter(e => e.ledger_id === l.id);
+        if (myEntries.length === 0) return; // Skip if no transactions
 
-        const group = l.groups.name;
-        if (group === 'Sales Accounts' || group === 'Direct Incomes') {
-            categories.directIncome.items.push({ name: l.name, bal });
-            categories.directIncome.total += bal;
-        } else if (group === 'Purchase Accounts' || group === 'Direct Expenses') {
-            categories.directExpense.items.push({ name: l.name, bal });
-            categories.directExpense.total += bal;
-        } else if (group === 'Indirect Incomes') {
-            categories.indirectIncome.items.push({ name: l.name, bal });
-            categories.indirectIncome.total += bal;
-        } else if (group === 'Indirect Expenses') {
-            categories.indirectExpense.items.push({ name: l.name, bal });
-            categories.indirectExpense.total += bal;
+        let bal = 0;
+        let isIncome = false;
+
+        // Categorize based on Group Name (Tolerates singular/plural)
+        let targetCategory = null;
+        if (groupName.includes('Sales') || groupName.includes('Direct Income')) {
+            targetCategory = categories.directIncome;
+            isIncome = true;
+        } else if (groupName.includes('Purchase') || groupName.includes('Direct Expense')) {
+            targetCategory = categories.directExpense;
+        } else if (groupName.includes('Indirect Income')) {
+            targetCategory = categories.indirectIncome;
+            isIncome = true;
+        } else if (groupName.includes('Indirect Expense')) {
+            targetCategory = categories.indirectExpense;
+        }
+
+        if (!targetCategory) return; // Skip Assets/Liabilities, they belong in Balance Sheet!
+
+        // Do the math based on Income vs Expense
+        myEntries.forEach(e => {
+            const amt = parseFloat(e.amount) || 0;
+            if (isIncome) {
+                // For Sales/Incomes: Credits add up, Debits reduce
+                bal += e.is_debit ? -amt : amt;
+            } else {
+                // For Purchases/Expenses: Debits add up, Credits reduce
+                bal += e.is_debit ? amt : -amt;
+            }
+        });
+
+        if (bal !== 0) {
+            targetCategory.items.push({ name: l.name, bal });
+            targetCategory.total += bal;
         }
     });
 
-    // 5. Build HTML
+    // 5. Final Calculations & Rendering
     const grossProfit = categories.directIncome.total - categories.directExpense.total;
     const netProfit = (grossProfit + categories.indirectIncome.total) - categories.indirectExpense.total;
 
@@ -408,13 +429,13 @@ async function loadPLStatement() {
         ${renderPLGroup(categories.directExpense)}
         <div class="pl-row pl-total-row">
             <span>GROSS PROFIT</span>
-            <span class="${grossProfit >= 0 ? 'text-profit' : 'text-loss'}">₹ ${grossProfit.toFixed(2)}</span>
+            <span class="${grossProfit >= 0 ? 'text-profit' : 'text-loss'}">₹ ${Math.abs(grossProfit).toFixed(2)}</span>
         </div>
         ${renderPLGroup(categories.indirectIncome)}
         ${renderPLGroup(categories.indirectExpense)}
         <div class="pl-row pl-total-row" style="background: #1e293b; color: white;">
             <span>NET PROFIT</span>
-            <span style="color: ${netProfit >= 0 ? '#4ade80' : '#f87171'}">₹ ${netProfit.toFixed(2)}</span>
+            <span style="color: ${netProfit >= 0 ? '#4ade80' : '#f87171'}">₹ ${Math.abs(netProfit).toFixed(2)}</span>
         </div>
     `;
 }
@@ -423,7 +444,7 @@ function renderPLGroup(group) {
     if (group.items.length === 0) return '';
     let html = `<div class="pl-row pl-group-head"><span>${group.label}</span><span></span></div>`;
     group.items.forEach(i => {
-        html += `<div class="pl-row pl-ledger-row"><span>${i.name}</span><span>${i.bal.toFixed(2)}</span></div>`;
+        html += `<div class="pl-row pl-ledger-row"><span>${i.name}</span><span>${Math.abs(i.bal).toFixed(2)}</span></div>`;
     });
     return html;
 }
