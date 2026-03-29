@@ -165,13 +165,27 @@ async function handleVoucherSubmit(e) {
 
 async function handleLedgerSubmit(e) {
     e.preventDefault();
-    const { error } = await supabaseClient.from('ledgers').insert([{
+    const btn = document.getElementById('ledger-save-btn');
+    btn.disabled = true;
+
+    const ledgerData = {
         company_id: currentCompany.id,
         name: document.getElementById('ledger_name').value,
         group_id: document.getElementById('ledger_group').value,
-        opening_balance: document.getElementById('opening_bal').value
-    }]);
-    if (!error) { alert("Ledger Created!"); hideLedgerScreen(); }
+        address: document.getElementById('ledger_address')?.value || '', // Added
+        pan_no: document.getElementById('ledger_pan')?.value || '',     // Added
+        opening_balance: document.getElementById('opening_bal').value,
+        opening_balance_type: document.getElementById('bal_type').value
+    };
+
+    const { error } = await supabaseClient.from('ledgers').insert([ledgerData]);
+    if (!error) { 
+        alert("Ledger Created!"); 
+        hideLedgerScreen(); 
+    } else {
+        alert("Error: " + error.message);
+    }
+    btn.disabled = false;
 }
 
 async function handleCompanySubmit(e) {
