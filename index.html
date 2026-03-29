@@ -179,6 +179,61 @@
         </form>
     </div>
 </div>
+        <div id="voucher-screen" class="screen hidden">
+    <header id="voucher-header" class="tally-header header-nav">
+        <button class="back-btn" onclick="hideVoucherScreen()">❮ Back</button>
+        <h1 id="voucher-type-title">Payment Voucher</h1>
+    </header>
+
+    <div class="form-container">
+        <div class="voucher-type-selector">
+            <button class="v-btn active" onclick="setVoucherType('Payment', this)">F5: Pymt</button>
+            <button class="v-btn" onclick="setVoucherType('Receipt', this)">F6: Rcpt</button>
+            <button class="v-btn" onclick="setVoucherType('Contra', this)">F4: Contra</button>
+        </div>
+
+        <form id="voucher-form">
+            <div class="row">
+                <div class="input-group half">
+                    <label>No.</label>
+                    <input type="text" id="v_number" value="1" readonly>
+                </div>
+                <div class="input-group half">
+                    <label>Date</label>
+                    <input type="date" id="v_date" required>
+                </div>
+            </div>
+
+            <div class="input-group">
+                <label id="account-label">Account (Cash/Bank)</label>
+                <select id="v_main_account" required>
+                    <option value="">Select Cash/Bank Ledger</option>
+                </select>
+            </div>
+
+            <div class="section-title">Particulars</div>
+            
+            <div class="input-group">
+                <label>Ledger Name</label>
+                <select id="v_particular_ledger" required>
+                    <option value="">Select Ledger</option>
+                </select>
+            </div>
+
+            <div class="input-group">
+                <label>Amount</label>
+                <input type="number" id="v_amount" step="0.01" required placeholder="0.00">
+            </div>
+
+            <div class="input-group">
+                <label>Narration</label>
+                <textarea id="v_narration" rows="2" placeholder="Being..."></textarea>
+            </div>
+
+            <button type="submit" class="submit-btn" id="v-save-btn">Accept</button>
+        </form>
+    </div>
+</div>
     </div>
 
     <script src="supabaseClient.js"></script>
