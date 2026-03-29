@@ -243,20 +243,19 @@
     </div>
 </div>
     <div id="daybook-screen" class="screen hidden">
-    <header class="tally-header header-nav bg-dark">
-        <button class="back-btn" onclick="showDashboard()">❮ Back</button>
+    <header class="tally-header bg-dark">
+        <button class="back-btn" onclick="hideDayBookScreen()">❮ Back</button>
         <h1>Day Book</h1>
     </header>
     
     <div class="report-controls">
-        <input type="date" id="daybook-date-filter" onchange="loadDayBook()">
+        <label for="db_date_filter">Date: </label>
+        <input type="date" id="db_date_filter" onchange="loadDayBookData()">
     </div>
 
-    <div id="daybook-list" class="transaction-list">
+    <div id="daybook-list" class="report-list-container">
         </div>
 </div>
-
-<script src="reports.js?v=2"></script>
     </div>
 
 <script src="supabaseClient.js?v=2"></script>
@@ -264,6 +263,6 @@
 <script src="masters.js?v=2"></script>
 <script src="transactions.js?v=2"></script>
 <script src="app.js?v=2"></script>
-
+<script src="reports.js?v=2"></script>
 </body>
 </html>
