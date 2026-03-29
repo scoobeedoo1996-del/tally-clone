@@ -1,84 +1,104 @@
-// --- Global State ---
+// --- 1. Global State ---
 let currentCompany = null;
+let currentVoucherType = 'Payment';
 
-// --- Initialization ---
+// --- 2. Initialization (The "Brain" that connects everything) ---
 document.addEventListener('DOMContentLoaded', () => {
     loadCompanies();
     
-    // Setup Form Listeners
-    const ledgerForm = document.getElementById('create-ledger-form');
-    if (ledgerForm) {
-        ledgerForm.addEventListener('submit', handleLedgerSubmit);
-    }
-    
-    const companyForm = document.getElementById('create-company-form');
-    if (companyForm) {
-        companyForm.addEventListener('submit', handleCompanySubmit);
-    }
+    // Connect Form Listeners
+    setupListener('create-company-form', handleCompanySubmit);
+    setupListener('create-ledger-form', handleLedgerSubmit);
+    setupListener('voucher-form', handleVoucherSubmit);
 });
 
-// --- Screen Navigation ---
+// Helper to prevent errors if a form isn't on the current screen
+function setupListener(id, handler) {
+    const form = document.getElementById(id);
+    if (form) form.addEventListener('submit', handler);
+}
+
+// --- 3. Screen Navigation ---
 function showCreateScreen() {
-    document.getElementById('main-screen').classList.add('hidden');
+    hideAllScreens();
     document.getElementById('create-screen').classList.remove('hidden');
-    // Default Tally Dates
     const year = new Date().getFullYear();
     document.getElementById('fy_start').value = `${year}-04-01`;
     document.getElementById('books_start').value = `${year}-04-01`;
 }
 
-function hideCreateScreen() {
-    document.getElementById('create-screen').classList.add('hidden');
-    document.getElementById('main-screen').classList.remove('hidden');
-}
-
 function selectCompany(id, name) {
     currentCompany = { id, name };
     document.getElementById('active-company-name').innerText = name;
-    document.getElementById('main-screen').classList.add('hidden');
+    hideAllScreens();
     document.getElementById('dashboard-screen').classList.remove('hidden');
 }
 
 function exitCompany() {
     currentCompany = null;
-    document.getElementById('dashboard-screen').classList.add('hidden');
+    hideAllScreens();
     document.getElementById('main-screen').classList.remove('hidden');
 }
 
 async function openLedgers() {
-    document.getElementById('dashboard-screen').classList.add('hidden');
+    hideAllScreens();
     document.getElementById('ledger-screen').classList.remove('hidden');
     await loadGroups();
 }
 
-function hideLedgerScreen() {
-    document.getElementById('ledger-screen').classList.add('hidden');
-    document.getElementById('dashboard-screen').classList.remove('hidden');
-    document.getElementById('create-ledger-form').reset();
+async function openVoucherEntry() {
+    hideAllScreens();
+    document.getElementById('voucher-screen').classList.remove('hidden');
+    document.getElementById('v_date').valueAsDate = new Date();
+    await loadVoucherLedgers();
+    setVoucherType('Payment'); // Initialize with Payment (F5)
 }
 
-// --- Data Fetching ---
+function hideAllScreens() {
+    document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
+}
+
+function hideLedgerScreen() { selectCompany(currentCompany.id, currentCompany.name); }
+function hideVoucherScreen() { selectCompany(currentCompany.id, currentCompany.name); }
+function hideCreateScreen() { exitCompany(); }
+
+// --- 4. Voucher Logic (F4 to F9) ---
+function setVoucherType(type, btn) {
+    currentVoucherType = type;
+    const header = document.getElementById('voucher-header');
+    const title = document.getElementById('voucher-type-title');
+    const label = document.getElementById('account-label');
+    
+    // Update Button UI
+    document.querySelectorAll('.v-btn').forEach(b => b.classList.remove('active'));
+    if(btn) btn.classList.add('active');
+    else {
+        // Fallback to highlight the first button if called programmatically
+        const firstBtn = document.querySelector('.v-btn');
+        if(firstBtn) firstBtn.classList.add('active');
+    }
+    
+    title.innerText = `${type} Voucher`;
+    
+    // Tally Label Logic
+    if(['Sales', 'CreditNote'].includes(type)) label.innerText = "Party A/c (Customer/Cash)";
+    else if(['Purchase', 'DebitNote'].includes(type)) label.innerText = "Party A/c (Supplier/Cash)";
+    else label.innerText = "Account (Cash/Bank)";
+
+    // Update Color
+    header.className = `tally-header header-nav bg-${type.toLowerCase()}`;
+}
+
+// --- 5. Data Fetching & Select Populating ---
 async function loadCompanies() {
     const list = document.getElementById('company-list');
-    list.innerHTML = '<p class="loading-text">Loading companies...</p>';
-
-    const { data, error } = await supabaseClient
-        .from('companies')
-        .select('*')
-        .order('name');
-
-    if (error) {
-        console.error(error);
-        list.innerHTML = '<p>Error connecting to database.</p>';
-        return;
-    }
-
+    list.innerHTML = '<p>Loading...</p>';
+    const { data, error } = await supabaseClient.from('companies').select('*').order('name');
+    if (error) return list.innerHTML = '<p>Error.</p>';
+    
     list.innerHTML = data.map(c => `
         <div class="company-card" onclick="selectCompany('${c.id}', '${c.name}')">
-            <div class="company-info">
-                <b>${c.name}</b>
-                <span>FY: ${new Date(c.financial_year_start).getFullYear()}</span>
-            </div>
+            <div class="company-info"><b>${c.name}</b><span>FY: ${new Date(c.financial_year_start).getFullYear()}</span></div>
             <div class="arrow">❯</div>
         </div>
     `).join('');
@@ -86,147 +106,79 @@ async function loadCompanies() {
 
 async function loadGroups() {
     const select = document.getElementById('ledger_group');
-    const { data, error } = await supabaseClient.from('groups').select('id, name').order('name');
-    
-    if (!error) {
-        select.innerHTML = '<option value="">Select a Group</option>' + 
-            data.map(g => `<option value="${g.id}">${g.name}</option>`).join('');
-    }
+    const { data } = await supabaseClient.from('groups').select('id, name').order('name');
+    if (data) select.innerHTML = '<option value="">Select Group</option>' + data.map(g => `<option value="${g.id}">${g.name}</option>`).join('');
 }
 
-// --- Form Handlers (Production Ready) ---
-async function handleLedgerSubmit(e) {
-    e.preventDefault();
-    if (!currentCompany) return alert("No active company selected!");
-
-    const btn = document.getElementById('ledger-save-btn');
-    btn.innerText = "Processing...";
-    btn.disabled = true; // Prevent double submit
-
-    const ledgerData = {
-        company_id: currentCompany.id,
-        name: document.getElementById('ledger_name').value,
-        group_id: document.getElementById('ledger_group').value,
-        opening_balance: parseFloat(document.getElementById('opening_bal').value) || 0,
-        opening_balance_type: document.getElementById('bal_type').value
-    };
-
-    const { error } = await supabaseClient.from('ledgers').insert([ledgerData]);
-
-    if (error) {
-        alert("Upload Failed: " + error.message);
-    } else {
-        alert("Ledger successfully added to " + currentCompany.name);
-        hideLedgerScreen();
-    }
+async function loadVoucherLedgers() {
+    const mainAcc = document.getElementById('v_main_account');
+    const partAcc = document.getElementById('v_particular_ledger');
     
-    btn.innerText = "Accept";
-    btn.disabled = false;
+    const { data, error } = await supabaseClient
+        .from('ledgers')
+        .select('id, name, groups(name)')
+        .eq('company_id', currentCompany.id);
+
+    if (error) return;
+
+    // Filter top account for Cash/Bank if Contra/Payment/Receipt
+    const cashBank = data.filter(l => l.groups.name.includes('Cash') || l.groups.name.includes('Bank'));
+    
+    mainAcc.innerHTML = '<option value="">Select Account</option>' + 
+        (currentVoucherType === 'Contra' || currentVoucherType === 'Payment' || currentVoucherType === 'Receipt' ? cashBank : data)
+        .map(l => `<option value="${l.id}">${l.name}</option>`).join('');
+
+    partAcc.innerHTML = '<option value="">Select Particulars</option>' + 
+        data.map(l => `<option value="${l.id}">${l.name}</option>`).join('');
 }
 
-async function handleCompanySubmit(e) {
-    e.preventDefault();
-    const btn = document.querySelector('#create-company-form .submit-btn');
-    btn.innerText = "Creating...";
-    btn.disabled = true;
-
-    const companyData = {
-        name: document.getElementById('company_name').value,
-        financial_year_start: document.getElementById('fy_start').value,
-        mailing_name: document.getElementById('mailing_name').value || document.getElementById('company_name').value
-    };
-
-    const { error } = await supabaseClient.from('companies').insert([companyData]);
-
-    if (error) {
-        alert("Error: " + error.message);
-    } else {
-        hideCreateScreen();
-        await loadCompanies();
-    }
-    
-    btn.innerText = "Accept (Save)";
-    btn.disabled = false;
-}
-let currentVoucherType = 'Payment';
-
-function setVoucherType(type, btn) {
-    currentVoucherType = type;
-    const header = document.getElementById('voucher-header');
-    const title = document.getElementById('voucher-type-title');
-    const label = document.getElementById('account-label');
-    
-    document.querySelectorAll('.v-btn').forEach(b => b.classList.remove('active'));
-    if(btn) btn.classList.add('active');
-    
-    title.innerText = `${type} Voucher`;
-    
-    // UI Label logic
-    if(type === 'Sales' || type === 'CreditNote') label.innerText = "Party A/c (Customer/Cash)";
-    else if(type === 'Purchase' || type === 'DebitNote') label.innerText = "Party A/c (Supplier/Cash)";
-    else label.innerText = "Account (Cash/Bank)";
-
-    header.className = `tally-header header-nav bg-${type.toLowerCase()}`;
-}
-
+// --- 6. Final Submission Handlers ---
 async function handleVoucherSubmit(e) {
     e.preventDefault();
     const btn = document.getElementById('v-save-btn');
     btn.disabled = true;
-    btn.innerText = "Posting...";
+    btn.innerText = "Saving...";
 
-    const mainAccId = document.getElementById('v_main_account').value;
-    const partAccId = document.getElementById('v_particular_ledger').value;
-    const amount = parseFloat(document.getElementById('v_amount').value);
+    const { data: vRecord, error: vError } = await supabaseClient.from('vouchers').insert([{
+        company_id: currentCompany.id,
+        voucher_type: currentVoucherType,
+        date: document.getElementById('v_date').value,
+        voucher_number: document.getElementById('v_number').value,
+        narration: document.getElementById('v_narration').value
+    }]).select();
 
-    // 1. Insert Voucher Header
-    const { data: vRecord, error: vError } = await supabaseClient
-        .from('vouchers')
-        .insert([{
-            company_id: currentCompany.id,
-            voucher_type: currentVoucherType,
-            date: document.getElementById('v_date').value,
-            voucher_number: document.getElementById('v_number').value,
-            narration: document.getElementById('v_narration').value
-        }]).select();
+    if (vError) { alert(vError.message); btn.disabled = false; return; }
 
-    if (vError) {
-        alert(vError.message);
-        btn.disabled = false;
-        return;
-    }
+    // Debit/Credit Logic
+    let mainType = ['Receipt', 'Sales', 'Contra', 'DebitNote'].includes(currentVoucherType) ? 'Debit' : 'Credit';
+    let partType = mainType === 'Debit' ? 'Credit' : 'Debit';
 
-    const vId = vRecord[0].id;
+    const { error: eError } = await supabaseClient.from('voucher_entries').insert([
+        { voucher_id: vRecord[0].id, ledger_id: document.getElementById('v_main_account').value, amount: document.getElementById('v_amount').value, entry_type: mainType },
+        { voucher_id: vRecord[0].id, ledger_id: document.getElementById('v_particular_ledger').value, amount: document.getElementById('v_amount').value, entry_type: partType }
+    ]);
 
-    // 2. Accounting Logic: Who is Dr and Who is Cr?
-    let mainEntryType = 'Credit'; // Default for Payment/Purchase/DebitNote
-    let partEntryType = 'Debit';
-
-    if (['Receipt', 'Sales', 'Contra', 'DebitNote'].includes(currentVoucherType)) {
-        // In these cases, the "Top" account is usually the one receiving value (Debit)
-        mainEntryType = 'Debit';
-        partEntryType = 'Credit';
-    } 
-    
-    // Refined override for Purchase/Payment
-    if (['Payment', 'Purchase', 'CreditNote'].includes(currentVoucherType)) {
-        mainEntryType = 'Credit';
-        partEntryType = 'Debit';
-    }
-
-    const entries = [
-        { voucher_id: vId, ledger_id: mainAccId, amount: amount, entry_type: mainEntryType },
-        { voucher_id: vId, ledger_id: partAccId, amount: amount, entry_type: partEntryType }
-    ];
-
-    const { error: eError } = await supabaseClient.from('voucher_entries').insert(entries);
-
-    if (eError) {
-        alert("Accounting Error: " + eError.message);
-    } else {
-        alert(`${currentVoucherType} Posted Successfully!`);
-        hideVoucherScreen();
-    }
+    if (!eError) { alert("Voucher Saved!"); hideVoucherScreen(); }
     btn.disabled = false;
     btn.innerText = "Accept";
+}
+
+async function handleLedgerSubmit(e) {
+    e.preventDefault();
+    const { error } = await supabaseClient.from('ledgers').insert([{
+        company_id: currentCompany.id,
+        name: document.getElementById('ledger_name').value,
+        group_id: document.getElementById('ledger_group').value,
+        opening_balance: document.getElementById('opening_bal').value
+    }]);
+    if (!error) { alert("Ledger Created!"); hideLedgerScreen(); }
+}
+
+async function handleCompanySubmit(e) {
+    e.preventDefault();
+    const { error } = await supabaseClient.from('companies').insert([{
+        name: document.getElementById('company_name').value,
+        financial_year_start: document.getElementById('fy_start').value
+    }]);
+    if (!error) { hideCreateScreen(); loadCompanies(); }
 }
