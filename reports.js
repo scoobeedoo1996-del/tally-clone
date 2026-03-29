@@ -332,10 +332,21 @@ async function loadTrialBalance() {
 async function openPL() {
     hideAllScreens();
     document.getElementById('pl-screen').classList.remove('hidden');
-    // Default to current Financial Year (e.g., April to Now)
+
+    // 1. Get the current date for the end date
     const now = new Date();
-    document.getElementById('pl_start_date').value = now.getFullYear() + "-04-01";
     document.getElementById('pl_end_date').valueAsDate = now;
+
+    // 2. Use the company's "Books Beginning From" date as the start date
+    // We check if currentCompany exists and has the property; otherwise, fallback to April 1st.
+    if (currentCompany && currentCompany.books_beginning_from) {
+        document.getElementById('pl_start_date').value = currentCompany.books_beginning_from;
+    } else {
+        // Fallback if company data isn't loaded for some reason
+        document.getElementById('pl_start_date').value = now.getFullYear() + "-04-01";
+    }
+
+    // 3. Load the report automatically with these dates
     await loadPLStatement();
 }
 
