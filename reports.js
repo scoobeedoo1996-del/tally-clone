@@ -189,13 +189,17 @@ function renderTallyStyleTable(opening, vouchers) {
     let curDebit = 0;
     let curCredit = 0;
 
+// Ensure we have safe, fallback numbers even if database returns null
+    const safeOpeningAmt = opening && !isNaN(opening.amount) ? parseFloat(opening.amount) : 0;
+    const safeOpeningType = (opening && opening.type) ? opening.type : 'Dr';
+
     // Opening Balance Row
     let html = `
-        <tr class="balance-row">
+        <tr class="balance-row" style="background: #fffdf0;">
             <td>${document.getElementById('stmt_start_date').value}</td>
             <td colspan="3"><b>Opening Balance</b></td>
-            <td class="text-right">${opening.type === 'Dr' ? opening.amount.toFixed(2) : ''}</td>
-            <td class="text-right">${opening.type === 'Cr' ? opening.amount.toFixed(2) : ''}</td>
+            <td class="text-right">${safeOpeningType === 'Dr' ? safeOpeningAmt.toFixed(2) : ''}</td>
+            <td class="text-right">${safeOpeningType === 'Cr' ? safeOpeningAmt.toFixed(2) : ''}</td>
         </tr>
     `;
 
