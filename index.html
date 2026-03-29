@@ -336,6 +336,24 @@
         </table>
     </div>
 </div>
+    <div id="pl-screen" class="screen hidden">
+    <header class="tally-header bg-dark">
+        <button class="back-btn" onclick="showDashboard()">❮ Back</button>
+        <h1>Profit & Loss A/c</h1>
+    </header>
+    
+    <div class="report-controls">
+        <label>Period: </label>
+        <input type="date" id="pl_start_date">
+        <span> to </span>
+        <input type="date" id="pl_end_date" onchange="loadPLStatement()">
+    </div>
+
+    <div class="statement-container">
+        <div id="pl-content">
+            </div>
+    </div>
+</div>
     </div>
 
 <script src="supabaseClient.js?v=2"></script>
