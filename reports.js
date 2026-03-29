@@ -238,3 +238,90 @@ function renderTallyStyleTable(opening, vouchers) {
         </tr>
     `;
 }
+async function openTrialBalance() {
+    hideAllScreens();
+    document.getElementById('trialbalance-screen').classList.remove('hidden');
+    document.getElementById('tb_date').valueAsDate = new Date();
+    await loadTrialBalance();
+}
+
+async function loadTrialBalance() {
+    const asOnDate = document.getElementById('tb_date').value;
+    const tbody = document.getElementById('tb-body');
+    const tfoot = document.getElementById('tb-footer');
+    
+    if (!asOnDate) return;
+    tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;">Calculating balances...</td></tr>';
+
+    // 1. Fetch all Ledgers and their Group names
+    const { data: ledgers } = await supabaseClient
+        .from('ledgers')
+        .select('id, name, opening_balance, opening_balance_type, group_id');
+
+    // 2. Fetch all Voucher Entries up to asOnDate
+    const { data: entries } = await supabaseClient
+        .from('voucher_entries')
+        .select('ledger_id, amount, is_debit, vouchers!inner(voucher_date)')
+        .lte('vouchers.voucher_date', asOnDate);
+
+    // 3. Calculate Closing Balance for each Ledger
+    const ledgerBalances = ledgers.map(l => {
+        let bal = parseFloat(l.opening_balance) || 0;
+        let isDr = l.opening_balance_type === 'Dr';
+
+        const myEntries = entries.filter(e => e.ledger_id === l.id);
+        myEntries.forEach(e => {
+            const amt = parseFloat(e.amount);
+            if (e.is_debit === isDr) {
+                bal += amt;
+            } else {
+                bal -= amt;
+                if (bal < 0) {
+                    bal = Math.abs(bal);
+                    isDr = !isDr;
+                }
+            }
+        });
+        return { name: l.name, amount: bal, type: isDr ? 'Dr' : 'Cr' };
+    });
+
+    // 4. Render Rows
+    let totalDr = 0;
+    let totalCr = 0;
+    let html = '';
+
+    ledgerBalances.forEach(lb => {
+        if (lb.amount === 0) return; // Skip zero balances
+        
+        const dr = lb.type === 'Dr' ? lb.amount : 0;
+        const cr = lb.type === 'Cr' ? lb.amount : 0;
+        totalDr += dr;
+        totalCr += cr;
+
+        html += `
+            <tr>
+                <td>${lb.name}</td>
+                <td class="text-right">${dr > 0 ? dr.toFixed(2) : ''}</td>
+                <td class="text-right">${cr > 0 ? cr.toFixed(2) : ''}</td>
+            </tr>
+        `;
+    });
+
+    tbody.innerHTML = html;
+
+    // 5. Footer - The "Difference" Check
+    const difference = Math.abs(totalDr - totalCr);
+    
+    tfoot.innerHTML = `
+        <tr class="total-row" style="background: #e2e8f0; font-weight: bold;">
+            <td>Grand Total</td>
+            <td class="text-right">${totalDr.toFixed(2)}</td>
+            <td class="text-right">${totalCr.toFixed(2)}</td>
+        </tr>
+        ${difference > 0.01 ? `
+        <tr style="color: red; background: #fee2e2;">
+            <td><b>Difference in Opening Balances:</b></td>
+            <td colspan="2" class="text-right"><b>${difference.toFixed(2)}</b></td>
+        </tr>` : ''}
+    `;
+}
