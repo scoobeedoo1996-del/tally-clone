@@ -1,7 +1,9 @@
-// transactions.js - Adaptive Voucher Logic
 async function getNextVoucherNumber(type) {
     if (!currentCompany) return 1;
     
+    // DEBUG: See what we are actually asking the database
+    console.log(`Asking DB for last voucher number of type: ${type}`);
+
     const { data, error } = await supabaseClient
         .from('vouchers')
         .select('voucher_number')
@@ -10,9 +12,17 @@ async function getNextVoucherNumber(type) {
         .order('voucher_number', { ascending: false })
         .limit(1);
 
-    if (error || !data || data.length === 0) return 1;
+    // DEBUG: See what the database replies with
+    if (error) {
+        console.error("Database Error fetching number:", error);
+        return 1;
+    }
+    console.log("Database returned this for last number:", data);
+
+    // If no past vouchers exist for this type, start at 1
+    if (!data || data.length === 0) return 1;
     
-    // Convert to number and add 1
+    // Otherwise, add 1 to the last number
     const lastNumber = parseInt(data[0].voucher_number);
     return isNaN(lastNumber) ? 1 : lastNumber + 1;
 }
