@@ -80,7 +80,8 @@ async function loadDayBookData() {
 async function openLedgerStatement() {
     hideAllScreens();
     document.getElementById('statement-screen').classList.remove('hidden');
-    
+    document.getElementById('stmt_start_date').valueAsDate = new Date();
+    document.getElementById('stmt_end_date').valueAsDate = new Date();
     // Load all ledgers into the dropdown
     const { data: ledgers } = await supabaseClient
         .from('ledgers')
