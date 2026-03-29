@@ -57,6 +57,11 @@ async function loadVoucherLedgers(type) {
         mainFilter = ledgers.filter(l => ['Cash-in-Hand', 'Bank Accounts'].includes(l.groups.name));
         partFilter = mainFilter; 
     }
+    else if (type === 'Journal') {
+    // Journal allows any ledger for both sides
+        mainFilter = ledgers; 
+        partFilter = ledgers;
+    }    
     else { // Payment or Receipt
         mainFilter = ledgers.filter(l => ['Cash-in-Hand', 'Bank Accounts'].includes(l.groups.name));
         partFilter = ledgers; // Can pay/receive against any ledger
@@ -83,7 +88,9 @@ async function handleVoucherSubmit(e) {
     if (!vDate || !vMainLedger || !vPartLedger || isNaN(vAmount)) {
         return alert("Please fill all required fields correctly.");
     }
-
+    if (vMainLedger === vPartLedger) {
+    return alert("Main Account and Particulars cannot be the same ledger.");
+    }
     btn.disabled = true;
 
     // 1. Insert Voucher Header (Using 'voucher_date' to match your DB)
@@ -101,9 +108,10 @@ async function handleVoucherSubmit(e) {
         return;
     }
 
-    // 2. Insert Entries (Using 'is_debit' to match your DB)
-    // Rule: if type is Receipt/Sales/Contra -> Main is Debit (true), Particular is Credit (false)
-    let mainIsDebit = ['Receipt', 'Sales', 'Contra', 'DebitNote'].includes(currentVoucherType);
+     // 2. Insert Entries (Using 'is_debit' to match your DB)
+     // Rule: In Journal, Sales, Receipt, and Contra, we Debit the 'Main Account'
+     // In Payment and Purchase, we Credit the 'Main Account'
+    let mainIsDebit = ['Receipt', 'Sales', 'Contra', 'DebitNote','Journal'].includes(currentVoucherType);
     
     const { error: eErr } = await supabaseClient.from('voucher_entries').insert([
         { 
