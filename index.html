@@ -266,10 +266,24 @@
         <h1>Ledger Statement</h1>
     </header>
     
-    <div class="report-controls">
-        <label for="stmt_ledger_select">Account: </label>
+    <div class="report-controls tally-flex-row">
+    <div class="control-group">
+        <label>Account:</label>
         <select id="stmt_ledger_select" onchange="loadLedgerStatement()"></select>
     </div>
+    
+    <div class="control-group">
+        <label>Period:</label>
+        <input type="date" id="stmt_start_date" onchange="loadLedgerStatement()">
+        <span>to</span>
+        <input type="date" id="stmt_end_date" onchange="loadLedgerStatement()">
+    </div>
+    
+    <div class="side-tools">
+        <button class="tally-mini-btn" onclick="setTallyPeriod('today')">Today</button>
+        <button class="tally-mini-btn" onclick="setTallyPeriod('month')">This Month</button>
+    </div>
+</div>
 
     <div class="statement-container">
         <table class="tally-table">
