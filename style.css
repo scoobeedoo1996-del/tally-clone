@@ -208,3 +208,25 @@ select {
     background-color: #fffbeb !important;
     font-weight: bold;
 }
+.pl-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 15px;
+    border-bottom: 1px solid #f1f5f9;
+}
+.pl-group-head {
+    background-color: #f8fafc;
+    font-weight: bold;
+    color: #475569;
+    text-transform: uppercase;
+    font-size: 13px;
+    margin-top: 10px;
+}
+.pl-ledger-row { padding-left: 30px; font-size: 14px; }
+.pl-total-row {
+    font-weight: bold;
+    background-color: #e2e8f0;
+    border-top: 2px solid #333;
+}
+.text-profit { color: #16a34a; font-weight: bold; }
+.text-loss { color: #dc2626; font-weight: bold; }
