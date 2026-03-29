@@ -105,6 +105,58 @@ document.getElementById('create-company-form').addEventListener('submit', async 
     saveBtn.innerText = "Accept (Save)";
     saveBtn.disabled = false;
 });
+// NAVIGATION FOR LEDGERS
+async function openLedgers() {
+    document.getElementById('dashboard-screen').classList.add('hidden');
+    document.getElementById('ledger-screen').classList.remove('hidden');
+    loadGroups(); // Load Tally groups into the dropdown
+}
+
+function hideLedgerScreen() {
+    document.getElementById('ledger-screen').classList.add('hidden');
+    document.getElementById('dashboard-screen').classList.remove('hidden');
+    document.getElementById('create-ledger-form').reset();
+}
+
+// FETCH GROUPS FROM SUPABASE
+async function loadGroups() {
+    const groupSelect = document.getElementById('ledger_group');
+    
+    const { data, error } = await supabaseClient
+        .from('groups')
+        .select('id, name')
+        .order('name', { ascending: true });
+
+    if (!error) {
+        groupSelect.innerHTML = '<option value="">Select a Group</option>' + 
+            data.map(g => `<option value="${g.id}">${g.name}</option>`).join('');
+    }
+}
+
+// SAVE LEDGER TO SUPABASE
+document.getElementById('create-ledger-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const btn = document.getElementById('ledger-save-btn');
+    btn.innerText = "Saving...";
+    
+    const ledgerData = {
+        company_id: currentCompany.id,
+        name: document.getElementById('ledger_name').value,
+        group_id: document.getElementById('ledger_group').value,
+        opening_balance: parseFloat(document.getElementById('opening_bal').value) || 0,
+        opening_balance_type: document.getElementById('bal_type').value
+    };
+
+    const { error } = await supabaseClient.from('ledgers').insert([ledgerData]);
+
+    if (error) {
+        alert("Error: " + error.message);
+    } else {
+        alert("Ledger Created Successfully!");
+        hideLedgerScreen();
+    }
+    btn.innerText = "Accept";
+});
 
 // Initialize App
 window.onload = loadCompanies;
