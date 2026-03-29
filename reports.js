@@ -246,30 +246,40 @@ function renderTallyStyleTable(opening, vouchers) {
     `;
 }
 async function openTrialBalance() {
+    // STRUCTURAL CHECK
+    if (!currentCompany) return showScreen('company-selection-screen');
+
     hideAllScreens();
     document.getElementById('trialbalance-screen').classList.remove('hidden');
+    
+    // Set to Today's Date
     document.getElementById('tb_date').valueAsDate = new Date();
     await loadTrialBalance();
 }
 
 async function loadTrialBalance() {
+    // STRUCTURAL CHECK
+    if (!currentCompany) return;
+
     const asOnDate = document.getElementById('tb_date').value;
     const tbody = document.getElementById('tb-body');
     const tfoot = document.getElementById('tb-footer');
     
-    if (!asOnDate) return;
-    tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;">Calculating balances...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;">Calculating...</td></tr>';
 
-    // 1. Fetch all Ledgers and their Group names
+    // 1. Fetch Ledgers
     const { data: ledgers } = await supabaseClient
         .from('ledgers')
-        .select('id, name, opening_balance, opening_balance_type, group_id');
+        .select('id, name, opening_balance, opening_balance_type')
+        .eq('company_id', currentCompany.id);
 
-    // 2. Fetch all Voucher Entries up to asOnDate
+    // 2. Fetch ALL entries from books_beginning_from up to asOnDate
     const { data: entries } = await supabaseClient
         .from('voucher_entries')
         .select('ledger_id, amount, is_debit, vouchers!inner(voucher_date)')
-        .lte('vouchers.voucher_date', asOnDate);
+        .eq('vouchers.company_id', currentCompany.id)
+        .gte('vouchers.voucher_date', currentCompany.books_beginning_from) // START
+        .lte('vouchers.voucher_date', asOnDate); // END
 
     // 3. Calculate Closing Balance for each Ledger
     const ledgerBalances = ledgers.map(l => {
