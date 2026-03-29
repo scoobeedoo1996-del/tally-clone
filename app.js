@@ -148,3 +148,85 @@ async function handleCompanySubmit(e) {
     btn.innerText = "Accept (Save)";
     btn.disabled = false;
 }
+let currentVoucherType = 'Payment';
+
+function setVoucherType(type, btn) {
+    currentVoucherType = type;
+    const header = document.getElementById('voucher-header');
+    const title = document.getElementById('voucher-type-title');
+    const label = document.getElementById('account-label');
+    
+    document.querySelectorAll('.v-btn').forEach(b => b.classList.remove('active'));
+    if(btn) btn.classList.add('active');
+    
+    title.innerText = `${type} Voucher`;
+    
+    // UI Label logic
+    if(type === 'Sales' || type === 'CreditNote') label.innerText = "Party A/c (Customer/Cash)";
+    else if(type === 'Purchase' || type === 'DebitNote') label.innerText = "Party A/c (Supplier/Cash)";
+    else label.innerText = "Account (Cash/Bank)";
+
+    header.className = `tally-header header-nav bg-${type.toLowerCase()}`;
+}
+
+async function handleVoucherSubmit(e) {
+    e.preventDefault();
+    const btn = document.getElementById('v-save-btn');
+    btn.disabled = true;
+    btn.innerText = "Posting...";
+
+    const mainAccId = document.getElementById('v_main_account').value;
+    const partAccId = document.getElementById('v_particular_ledger').value;
+    const amount = parseFloat(document.getElementById('v_amount').value);
+
+    // 1. Insert Voucher Header
+    const { data: vRecord, error: vError } = await supabaseClient
+        .from('vouchers')
+        .insert([{
+            company_id: currentCompany.id,
+            voucher_type: currentVoucherType,
+            date: document.getElementById('v_date').value,
+            voucher_number: document.getElementById('v_number').value,
+            narration: document.getElementById('v_narration').value
+        }]).select();
+
+    if (vError) {
+        alert(vError.message);
+        btn.disabled = false;
+        return;
+    }
+
+    const vId = vRecord[0].id;
+
+    // 2. Accounting Logic: Who is Dr and Who is Cr?
+    let mainEntryType = 'Credit'; // Default for Payment/Purchase/DebitNote
+    let partEntryType = 'Debit';
+
+    if (['Receipt', 'Sales', 'Contra', 'DebitNote'].includes(currentVoucherType)) {
+        // In these cases, the "Top" account is usually the one receiving value (Debit)
+        mainEntryType = 'Debit';
+        partEntryType = 'Credit';
+    } 
+    
+    // Refined override for Purchase/Payment
+    if (['Payment', 'Purchase', 'CreditNote'].includes(currentVoucherType)) {
+        mainEntryType = 'Credit';
+        partEntryType = 'Debit';
+    }
+
+    const entries = [
+        { voucher_id: vId, ledger_id: mainAccId, amount: amount, entry_type: mainEntryType },
+        { voucher_id: vId, ledger_id: partAccId, amount: amount, entry_type: partEntryType }
+    ];
+
+    const { error: eError } = await supabaseClient.from('voucher_entries').insert(entries);
+
+    if (eError) {
+        alert("Accounting Error: " + eError.message);
+    } else {
+        alert(`${currentVoucherType} Posted Successfully!`);
+        hideVoucherScreen();
+    }
+    btn.disabled = false;
+    btn.innerText = "Accept";
+}
