@@ -1,34 +1,40 @@
-// Screen Navigation Variables
-const mainScreen = document.getElementById('main-screen');
-const createScreen = document.getElementById('create-screen');
-const companyList = document.getElementById('company-list');
+// --- Global State ---
+let currentCompany = null;
 
-// ---- SCREEN NAVIGATION ----
-function showCreateScreen() {
-    mainScreen.classList.add('hidden');
-    createScreen.classList.remove('hidden');
+// --- Initialization ---
+document.addEventListener('DOMContentLoaded', () => {
+    loadCompanies();
     
-    // Auto-fill dates with current year to save time (Improvising on Tally!)
-    const currentYear = new Date().getFullYear();
-    document.getElementById('fy_start').value = `${currentYear}-04-01`; // Standard Indian FY start
-    document.getElementById('books_start').value = `${currentYear}-04-01`;
+    // Setup Form Listeners
+    const ledgerForm = document.getElementById('create-ledger-form');
+    if (ledgerForm) {
+        ledgerForm.addEventListener('submit', handleLedgerSubmit);
+    }
+    
+    const companyForm = document.getElementById('create-company-form');
+    if (companyForm) {
+        companyForm.addEventListener('submit', handleCompanySubmit);
+    }
+});
+
+// --- Screen Navigation ---
+function showCreateScreen() {
+    document.getElementById('main-screen').classList.add('hidden');
+    document.getElementById('create-screen').classList.remove('hidden');
+    // Default Tally Dates
+    const year = new Date().getFullYear();
+    document.getElementById('fy_start').value = `${year}-04-01`;
+    document.getElementById('books_start').value = `${year}-04-01`;
 }
 
 function hideCreateScreen() {
-    createScreen.classList.add('hidden');
-    mainScreen.classList.remove('hidden');
-    document.getElementById('create-company-form').reset();
+    document.getElementById('create-screen').classList.add('hidden');
+    document.getElementById('main-screen').classList.remove('hidden');
 }
-let currentCompany = null;
 
-// Function to select and enter a company
-function selectCompany(companyId, companyName, period) {
-    currentCompany = { id: companyId, name: companyName };
-    
-    // Update Dashboard UI
-    document.getElementById('active-company-name').innerText = companyName;
-    
-    // Switch Screens
+function selectCompany(id, name) {
+    currentCompany = { id, name };
+    document.getElementById('active-company-name').innerText = name;
     document.getElementById('main-screen').classList.add('hidden');
     document.getElementById('dashboard-screen').classList.remove('hidden');
 }
@@ -38,78 +44,11 @@ function exitCompany() {
     document.getElementById('dashboard-screen').classList.add('hidden');
     document.getElementById('main-screen').classList.remove('hidden');
 }
-// ---- FETCH COMPANIES ----
-async function loadCompanies() {
-    companyList.innerHTML = '<p>Loading businesses...</p>';
 
-    const { data, error } = await supabaseClient
-        .from('companies')
-        .select('*')
-        .order('created_at', { ascending: false }); // Newest first
-
-    if (error) {
-        companyList.innerHTML = '<p>Connection Error.</p>';
-        return;
-    }
-
-    if (data.length === 0) {
-        companyList.innerHTML = '<p style="text-align:center; padding: 20px;">No companies. Tap + to start.</p>';
-        return;
-    }
-
-    companyList.innerHTML = data.map(company => `
-        <div class="company-card" onclick="selectCompany('${company.id}', '${company.name}')">
-    <div class="company-info">
-        <b>${company.name}</b>
-        <span>FY: ${company.financial_year_start}</span>
-    </div>
-    <div style="color: #CBD5E1;">❯</div>
-</div>
-    `).join('');
-}
-
-// ---- SUBMIT FORM DATA TO SUPABASE ----
-document.getElementById('create-company-form').addEventListener('submit', async function(e) {
-    e.preventDefault(); // Prevent page reload
-    const saveBtn = document.getElementById('save-btn');
-    saveBtn.innerText = "Saving...";
-    saveBtn.disabled = true;
-
-    // Gather data from form
-    const newCompanyData = {
-        name: document.getElementById('company_name').value,
-        mailing_name: document.getElementById('mailing_name').value,
-        address: document.getElementById('address').value,
-        state: document.getElementById('state').value,
-        country: document.getElementById('country').value,
-        mobile: document.getElementById('mobile').value,
-        email: document.getElementById('email').value,
-        financial_year_start: document.getElementById('fy_start').value,
-        books_beginning_from: document.getElementById('books_start').value
-    };
-
-    // Insert into Supabase
-    const { error } = await supabaseClient.from('companies').insert([newCompanyData]);
-
-    if (error) {
-        alert("Error saving company: " + error.message);
-        saveBtn.innerText = "Accept (Save)";
-        saveBtn.disabled = false;
-        return;
-    }
-
-    // Success! Return to main screen and refresh list
-    hideCreateScreen();
-    loadCompanies();
-    
-    saveBtn.innerText = "Accept (Save)";
-    saveBtn.disabled = false;
-});
-// NAVIGATION FOR LEDGERS
 async function openLedgers() {
     document.getElementById('dashboard-screen').classList.add('hidden');
     document.getElementById('ledger-screen').classList.remove('hidden');
-    loadGroups(); // Load Tally groups into the dropdown
+    await loadGroups();
 }
 
 function hideLedgerScreen() {
@@ -118,27 +57,52 @@ function hideLedgerScreen() {
     document.getElementById('create-ledger-form').reset();
 }
 
-// FETCH GROUPS FROM SUPABASE
-async function loadGroups() {
-    const groupSelect = document.getElementById('ledger_group');
-    
-    const { data, error } = await supabaseClient
-        .from('groups')
-        .select('id, name')
-        .order('name', { ascending: true });
+// --- Data Fetching ---
+async function loadCompanies() {
+    const list = document.getElementById('company-list');
+    list.innerHTML = '<p class="loading-text">Loading companies...</p>';
 
+    const { data, error } = await supabaseClient
+        .from('companies')
+        .select('*')
+        .order('name');
+
+    if (error) {
+        console.error(error);
+        list.innerHTML = '<p>Error connecting to database.</p>';
+        return;
+    }
+
+    list.innerHTML = data.map(c => `
+        <div class="company-card" onclick="selectCompany('${c.id}', '${c.name}')">
+            <div class="company-info">
+                <b>${c.name}</b>
+                <span>FY: ${new Date(c.financial_year_start).getFullYear()}</span>
+            </div>
+            <div class="arrow">❯</div>
+        </div>
+    `).join('');
+}
+
+async function loadGroups() {
+    const select = document.getElementById('ledger_group');
+    const { data, error } = await supabaseClient.from('groups').select('id, name').order('name');
+    
     if (!error) {
-        groupSelect.innerHTML = '<option value="">Select a Group</option>' + 
+        select.innerHTML = '<option value="">Select a Group</option>' + 
             data.map(g => `<option value="${g.id}">${g.name}</option>`).join('');
     }
 }
 
-// SAVE LEDGER TO SUPABASE
-document.getElementById('create-ledger-form').addEventListener('submit', async function(e) {
+// --- Form Handlers (Production Ready) ---
+async function handleLedgerSubmit(e) {
     e.preventDefault();
+    if (!currentCompany) return alert("No active company selected!");
+
     const btn = document.getElementById('ledger-save-btn');
-    btn.innerText = "Saving...";
-    
+    btn.innerText = "Processing...";
+    btn.disabled = true; // Prevent double submit
+
     const ledgerData = {
         company_id: currentCompany.id,
         name: document.getElementById('ledger_name').value,
@@ -150,13 +114,37 @@ document.getElementById('create-ledger-form').addEventListener('submit', async f
     const { error } = await supabaseClient.from('ledgers').insert([ledgerData]);
 
     if (error) {
-        alert("Error: " + error.message);
+        alert("Upload Failed: " + error.message);
     } else {
-        alert("Ledger Created Successfully!");
+        alert("Ledger successfully added to " + currentCompany.name);
         hideLedgerScreen();
     }
+    
     btn.innerText = "Accept";
-});
+    btn.disabled = false;
+}
 
-// Initialize App
-window.onload = loadCompanies;
+async function handleCompanySubmit(e) {
+    e.preventDefault();
+    const btn = document.querySelector('#create-company-form .submit-btn');
+    btn.innerText = "Creating...";
+    btn.disabled = true;
+
+    const companyData = {
+        name: document.getElementById('company_name').value,
+        financial_year_start: document.getElementById('fy_start').value,
+        mailing_name: document.getElementById('mailing_name').value || document.getElementById('company_name').value
+    };
+
+    const { error } = await supabaseClient.from('companies').insert([companyData]);
+
+    if (error) {
+        alert("Error: " + error.message);
+    } else {
+        hideCreateScreen();
+        await loadCompanies();
+    }
+    
+    btn.innerText = "Accept (Save)";
+    btn.disabled = false;
+}
