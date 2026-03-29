@@ -79,6 +79,55 @@
                 </form>
             </div>
         </div>
+        <div id="dashboard-screen" class="screen hidden">
+    <header class="tally-header">
+        <div class="header-nav">
+            <button class="back-btn" onclick="exitCompany()">❮ Exit</button>
+            <h1 id="active-company-name">Company Name</h1>
+        </div>
+        <p id="active-company-period">P: 1-Apr-2024 to 31-Mar-2025</p>
+    </header>
+
+    <div class="dashboard-grid">
+        <div class="grid-section">
+            <h2 class="section-label">Masters</h2>
+            <div class="grid-container">
+                <button class="menu-card" onclick="openLedgers()">
+                    <span class="icon">📁</span>
+                    <span>Create Ledger</span>
+                </button>
+                <button class="menu-card" onclick="openStockItems()">
+                    <span class="icon">📦</span>
+                    <span>Stock Items</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="grid-section">
+            <h2 class="section-label">Transactions</h2>
+            <div class="grid-container">
+                <button class="menu-card primary-card" onclick="openVoucherEntry()">
+                    <span class="icon">📝</span>
+                    <span>Voucher Entry</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="grid-section">
+            <h2 class="section-label">Reports</h2>
+            <div class="grid-container">
+                <button class="menu-card" onclick="viewBalanceSheet()">
+                    <span class="icon">📊</span>
+                    <span>Balance Sheet</span>
+                </button>
+                <button class="menu-card" onclick="viewProfitLoss()">
+                    <span class="icon">📈</span>
+                    <span>P & L A/c</span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
     </div>
 
     <script src="supabaseClient.js"></script>
