@@ -96,45 +96,84 @@ async function openLedgerStatement() {
     document.getElementById('statement-footer').innerHTML = '';
 }
 
+// Helper to set dates quickly (Like Tally shortcuts)
+function setTallyPeriod(type) {
+    const startInput = document.getElementById('stmt_start_date');
+    const endInput = document.getElementById('stmt_end_date');
+    const now = new Date();
+
+    if (type === 'today') {
+        startInput.valueAsDate = now;
+        endInput.valueAsDate = now;
+    } else if (type === 'month') {
+        const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+        startInput.valueAsDate = firstDay;
+        endInput.valueAsDate = now;
+    }
+    loadLedgerStatement();
+}
+
 async function loadLedgerStatement() {
     const ledgerId = document.getElementById('stmt_ledger_select').value;
+    const startDate = document.getElementById('stmt_start_date').value;
+    const endDate = document.getElementById('stmt_end_date').value;
+    
     const tbody = document.getElementById('statement-body');
     const tfoot = document.getElementById('statement-footer');
     
-    if (!ledgerId) return;
-    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">Loading...</td></tr>';
+    if (!ledgerId || !startDate || !endDate) return;
+    
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">Filtering records...</td></tr>';
 
-    // 1. Get Ledger Opening Balance
+    // 1. Get Ledger Info
     const { data: ledgerData } = await supabaseClient
         .from('ledgers')
         .select('opening_balance, opening_balance_type')
         .eq('id', ledgerId)
         .single();
 
-    // 2. Find all Vouchers that involve this ledger
-    const { data: entries } = await supabaseClient
+    // 2. Optimized Query: Fetch only entries for THIS ledger within THIS period
+    // We join with 'vouchers' to filter by the voucher_date
+    const { data: entries, error } = await supabaseClient
         .from('voucher_entries')
-        .select('voucher_id')
-        .eq('ledger_id', ledgerId);
-        
-    if (!entries || entries.length === 0) {
-        renderStatementTable(ledgerData, []);
+        .select(`
+            amount, is_debit,
+            vouchers!inner ( id, voucher_date, voucher_type, voucher_number, narration )
+        `)
+        .eq('ledger_id', ledgerId)
+        .gte('vouchers.voucher_date', startDate)
+        .lte('vouchers.voucher_date', endDate)
+        .order('vouchers(voucher_date)', { ascending: true });
+
+    if (error) {
+        console.error("Statement Error:", error);
         return;
     }
 
-    const voucherIds = entries.map(e => e.voucher_id);
+    // 3. For "Particulars", we need the OTHER side of these vouchers
+    // We fetch all entries related to the vouchers we just found
+    const vIds = entries.map(e => e.vouchers.id);
+    const { data: allRelatedEntries } = await supabaseClient
+        .from('voucher_entries')
+        .select('voucher_id, ledger_id, ledgers(name)')
+        .in('voucher_id', vIds)
+        .neq('ledger_id', ledgerId); // Get the "Opposite" ledger
 
-    // 3. Fetch full voucher details (Ordered by Date)
-    const { data: vouchers } = await supabaseClient
-        .from('vouchers')
-        .select(`
-            id, voucher_date, voucher_type, voucher_number,
-            voucher_entries ( ledger_id, is_debit, amount, ledgers (name) )
-        `)
-        .in('id', voucherIds)
-        .order('voucher_date', { ascending: true });
+    // 4. Transform data for the render function
+    const formattedVouchers = entries.map(e => {
+        const opposite = allRelatedEntries.find(re => re.voucher_id === e.vouchers.id);
+        return {
+            voucher_date: e.vouchers.voucher_date,
+            voucher_type: e.vouchers.voucher_type,
+            voucher_number: e.vouchers.voucher_number,
+            voucher_entries: [
+                { ledger_id: ledgerId, is_debit: e.is_debit, amount: e.amount },
+                { ledger_id: 'other', ledgers: { name: opposite ? opposite.ledgers.name : 'Unknown' } }
+            ]
+        };
+    });
 
-    renderStatementTable(ledgerData, vouchers, ledgerId);
+    renderStatementTable(ledgerData, formattedVouchers, ledgerId);
 }
 
 function renderStatementTable(ledgerData, vouchers, targetLedgerId) {
