@@ -111,35 +111,23 @@ select {
     width: 100%;
     appearance: none; /* Modern mobile look */
 }
-/* Voucher Specifics */
+
+/* Voucher Type Colors */
+.bg-payment { background-color: #f43f5e !important; } /* Red */
+.bg-receipt { background-color: #10b981 !important; } /* Green */
+.bg-contra { background-color: #f59e0b !important; }  /* Amber */
+.bg-sales { background-color: #3b82f6 !important; }   /* Blue */
+.bg-purchase { background-color: #8b5cf6 !important; } /* Purple */
+.bg-creditnote { background-color: #06b6d4 !important; } /* Cyan */
+.bg-debitnote { background-color: #f97316 !important; } /* Orange */
+
+/* Make the selector scrollable on small phones */
 .voucher-type-selector {
     display: flex;
-    gap: 5px;
-    margin-bottom: 20px;
-    background: #E2E8F0;
-    padding: 5px;
-    border-radius: 10px;
+    gap: 8px;
+    overflow-x: auto;
+    padding: 10px;
+    white-space: nowrap;
+    -webkit-overflow-scrolling: touch;
 }
-
-.v-btn {
-    flex: 1;
-    padding: 8px;
-    border: none;
-    border-radius: 8px;
-    font-size: 12px;
-    font-weight: bold;
-    cursor: pointer;
-    background: transparent;
-    color: #475569;
-}
-
-.v-btn.active {
-    background: white;
-    color: var(--tally-primary);
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-
-/* Tally colors for different headers */
-.bg-payment { background-color: #F43F5E !important; } /* Reddish */
-.bg-receipt { background-color: #10B981 !important; } /* Green */
-.bg-contra { background-color: #F59E0B !important; }  /* Amber */
+.v-btn { flex: 0 0 auto; padding: 8px 15px; }
