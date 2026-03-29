@@ -44,32 +44,61 @@ async function loadVoucherLedgers(type) {
 }
 
 async function handleVoucherSubmit(e) {
+
     e.preventDefault();
+
     const btn = document.getElementById('v-save-btn');
+
     btn.disabled = true;
 
+
+
     const amount = parseFloat(document.getElementById('v_amount').value);
-    const voucher_date = document.getElementById('v_date').value;
+
+    const voucherDate = document.getElementById('v_date').value;
+
     // 1. Header
+
     const { data: v, error: vErr } = await supabaseClient.from('vouchers').insert([{
+
         company_id: currentCompany.id,
+
         voucher_type: currentVoucherType,
-        date: voucher_date,
+
+        date: voucherDate,
+
         voucher_number: document.getElementById('v_number').value,
+
         narration: document.getElementById('v_narration').value
+
     }]).select();
+
+
 
     if (vErr) { btn.disabled = false; return alert(vErr.message); }
 
+
+
     // 2. Adaptive Debit/Credit Logic
+
     let mainDrCr = (['Receipt', 'Sales', 'Contra', 'DebitNote'].includes(currentVoucherType)) ? 'Debit' : 'Credit';
+
     let partDrCr = (mainDrCr === 'Debit') ? 'Credit' : 'Debit';
 
+
+
     const { error: eErr } = await supabaseClient.from('voucher_entries').insert([
+
         { voucher_id: v[0].id, ledger_id: document.getElementById('v_main_account').value, amount: amount, entry_type: mainDrCr },
+
         { voucher_id: v[0].id, ledger_id: document.getElementById('v_particular_ledger').value, amount: amount, entry_type: partDrCr }
+
     ]);
 
+
+
     if (!eErr) { alert("Voucher Accepted"); showDashboard(); }
+
     btn.disabled = false;
+
 }
