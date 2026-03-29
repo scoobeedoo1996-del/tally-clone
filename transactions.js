@@ -44,61 +44,71 @@ async function loadVoucherLedgers(type) {
 }
 
 async function handleVoucherSubmit(e) {
-
     e.preventDefault();
-
     const btn = document.getElementById('v-save-btn');
+    
+    // 1. Capture Inputs
+    const vDate = document.getElementById('v_date').value;
+    const vMainLedger = document.getElementById('v_main_account').value;
+    const vPartLedger = document.getElementById('v_particular_ledger').value;
+    const vAmount = parseFloat(document.getElementById('v_amount').value);
+
+    // 2. Professional Validation (Prevents Database Errors)
+    if (!vDate) return alert("Please select a date");
+    if (!vMainLedger || !vPartLedger) return alert("Please select both ledgers");
+    if (isNaN(vAmount) || vAmount <= 0) return alert("Please enter a valid amount");
+    if (vMainLedger === vPartLedger) return alert("Main account and Particulars cannot be the same");
 
     btn.disabled = true;
+    btn.innerText = "Processing...";
 
-
-
-    const amount = parseFloat(document.getElementById('v_amount').value);
-
-    const voucherDate = document.getElementById('v_date').value;
-
-    // 1. Header
-
+    // 3. Insert Voucher Header
     const { data: v, error: vErr } = await supabaseClient.from('vouchers').insert([{
-
         company_id: currentCompany.id,
-
         voucher_type: currentVoucherType,
-
-        date: voucherDate,
-
+        date: vDate, // Ensure this matches your SQL column name exactly
         voucher_number: document.getElementById('v_number').value,
-
         narration: document.getElementById('v_narration').value
-
     }]).select();
 
+    if (vErr) { 
+        console.error("Voucher Header Error:", vErr);
+        alert("Header Error: " + vErr.message);
+        btn.disabled = false;
+        btn.innerText = "Accept";
+        return; 
+    }
 
-
-    if (vErr) { btn.disabled = false; return alert(vErr.message); }
-
-
-
-    // 2. Adaptive Debit/Credit Logic
-
+    // 4. Double Entry Logic (Debits & Credits)
+    // Tally Rules:
+    // Sales/Receipt/Contra/DebitNote -> Top Account gets Debited
+    // Purchase/Payment/CreditNote -> Top Account gets Credited
     let mainDrCr = (['Receipt', 'Sales', 'Contra', 'DebitNote'].includes(currentVoucherType)) ? 'Debit' : 'Credit';
-
     let partDrCr = (mainDrCr === 'Debit') ? 'Credit' : 'Debit';
 
-
-
     const { error: eErr } = await supabaseClient.from('voucher_entries').insert([
-
-        { voucher_id: v[0].id, ledger_id: document.getElementById('v_main_account').value, amount: amount, entry_type: mainDrCr },
-
-        { voucher_id: v[0].id, ledger_id: document.getElementById('v_particular_ledger').value, amount: amount, entry_type: partDrCr }
-
+        { 
+            voucher_id: v[0].id, 
+            ledger_id: vMainLedger, 
+            amount: vAmount, 
+            entry_type: mainDrCr 
+        },
+        { 
+            voucher_id: v[0].id, 
+            ledger_id: vPartLedger, 
+            amount: vAmount, 
+            entry_type: partDrCr 
+        }
     ]);
 
-
-
-    if (!eErr) { alert("Voucher Accepted"); showDashboard(); }
+    if (eErr) {
+        console.error("Entry Error:", eErr);
+        alert("Accounting Entry Error: " + eErr.message);
+    } else {
+        alert(`${currentVoucherType} Voucher No. ${document.getElementById('v_number').value} Saved!`);
+        showDashboard();
+    }
 
     btn.disabled = false;
-
+    btn.innerText = "Accept";
 }
