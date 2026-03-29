@@ -238,6 +238,21 @@
         </form>
     </div>
 </div>
+    <div id="daybook-screen" class="screen hidden">
+    <header class="tally-header header-nav bg-dark">
+        <button class="back-btn" onclick="showDashboard()">❮ Back</button>
+        <h1>Day Book</h1>
+    </header>
+    
+    <div class="report-controls">
+        <input type="date" id="daybook-date-filter" onchange="loadDayBook()">
+    </div>
+
+    <div id="daybook-list" class="transaction-list">
+        </div>
+</div>
+
+<script src="reports.js?v=2"></script>
     </div>
 
 <script src="supabaseClient.js?v=2"></script>
