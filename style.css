@@ -174,3 +174,37 @@ select {
 .type-sales { background: #dbeafe; color: #3b82f6; border-left-color: #3b82f6; }
 .type-purchase { background: #f3e8ff; color: #a855f7; border-left-color: #a855f7; }
 .type-contra { background: #fef3c7; color: #f59e0b; border-left-color: #f59e0b; }
+
+/* Table Styles for Statements */
+.statement-container {
+    padding: 10px;
+    background: white;
+    overflow-x: auto;
+}
+.tally-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+}
+.tally-table th, .tally-table td {
+    border: 1px solid #cbd5e1;
+    padding: 8px 10px;
+    text-align: left;
+}
+.tally-table th {
+    background-color: #f1f5f9;
+    font-weight: bold;
+    color: #1e293b;
+}
+.tally-table .text-right { text-align: right; }
+.tally-table .fw-bold { font-weight: bold; }
+.tally-table tbody tr:hover { background-color: #f8fafc; }
+
+/* Totals Row */
+.tally-table tfoot th {
+    background-color: #e2e8f0;
+}
+.balance-row {
+    background-color: #fffbeb !important;
+    font-weight: bold;
+}
