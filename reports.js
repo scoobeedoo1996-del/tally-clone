@@ -325,3 +325,105 @@ async function loadTrialBalance() {
         </tr>` : ''}
     `;
 }
+async function openPL() {
+    hideAllScreens();
+    document.getElementById('pl-screen').classList.remove('hidden');
+    // Default to current Financial Year (e.g., April to Now)
+    const now = new Date();
+    document.getElementById('pl_start_date').value = now.getFullYear() + "-04-01";
+    document.getElementById('pl_end_date').valueAsDate = now;
+    await loadPLStatement();
+}
+
+async function loadPLStatement() {
+    const start = document.getElementById('pl_start_date').value;
+    const end = document.getElementById('pl_end_date').value;
+    const container = document.getElementById('pl-content');
+
+    if (!start || !end) return;
+    container.innerHTML = "Calculating Profit & Loss...";
+
+    // 1. Fetch Ledgers with their Group names
+    const { data: ledgers } = await supabaseClient
+        .from('ledgers')
+        .select('id, name, opening_balance, opening_balance_type, groups(name, nature)')
+        .eq('company_id', currentCompany.id);
+
+    // 2. Fetch Voucher Entries in period
+    const { data: entries } = await supabaseClient
+        .from('voucher_entries')
+        .select('ledger_id, amount, is_debit, vouchers!inner(voucher_date)')
+        .gte('vouchers.voucher_date', start)
+        .lte('vouchers.voucher_date', end);
+
+    // 3. Helper to calculate a single ledger's net movement
+    const getBalance = (ledger) => {
+        let bal = 0; 
+        const myEntries = entries.filter(e => e.ledger_id === ledger.id);
+        myEntries.forEach(e => {
+            // For P&L (Income/Expense), we usually just look at current movement
+            // Income: Credit increases, Debit decreases
+            // Expense: Debit increases, Credit decreases
+            const isRevenueNature = ['Income', 'Sales'].includes(ledger.groups.nature);
+            if (e.is_debit === (isRevenueNature ? false : true)) bal += parseFloat(e.amount);
+            else bal -= parseFloat(e.amount);
+        });
+        return bal;
+    };
+
+    // 4. Categorize and Calculate
+    const categories = {
+        directIncome: { label: "Sales & Direct Incomes", total: 0, items: [] },
+        directExpense: { label: "Purchases & Direct Expenses", total: 0, items: [] },
+        indirectIncome: { label: "Indirect Incomes", total: 0, items: [] },
+        indirectExpense: { label: "Indirect Expenses", total: 0, items: [] }
+    };
+
+    ledgers.forEach(l => {
+        const bal = getBalance(l);
+        if (bal === 0) return;
+
+        const group = l.groups.name;
+        if (group === 'Sales Accounts' || group === 'Direct Incomes') {
+            categories.directIncome.items.push({ name: l.name, bal });
+            categories.directIncome.total += bal;
+        } else if (group === 'Purchase Accounts' || group === 'Direct Expenses') {
+            categories.directExpense.items.push({ name: l.name, bal });
+            categories.directExpense.total += bal;
+        } else if (group === 'Indirect Incomes') {
+            categories.indirectIncome.items.push({ name: l.name, bal });
+            categories.indirectIncome.total += bal;
+        } else if (group === 'Indirect Expenses') {
+            categories.indirectExpense.items.push({ name: l.name, bal });
+            categories.indirectExpense.total += bal;
+        }
+    });
+
+    // 5. Build HTML
+    const grossProfit = categories.directIncome.total - categories.directExpense.total;
+    const netProfit = (grossProfit + categories.indirectIncome.total) - categories.indirectExpense.total;
+
+    container.innerHTML = `
+        ${renderPLGroup(categories.directIncome)}
+        ${renderPLGroup(categories.directExpense)}
+        <div class="pl-row pl-total-row">
+            <span>GROSS PROFIT</span>
+            <span class="${grossProfit >= 0 ? 'text-profit' : 'text-loss'}">₹ ${grossProfit.toFixed(2)}</span>
+        </div>
+        ${renderPLGroup(categories.indirectIncome)}
+        ${renderPLGroup(categories.indirectExpense)}
+        <div class="pl-row pl-total-row" style="background: #1e293b; color: white;">
+            <span>NET PROFIT</span>
+            <span style="color: ${netProfit >= 0 ? '#4ade80' : '#f87171'}">₹ ${netProfit.toFixed(2)}</span>
+        </div>
+    `;
+}
+
+function renderPLGroup(group) {
+    if (group.items.length === 0) return '';
+    let html = `<div class="pl-row pl-group-head"><span>${group.label}</span><span></span></div>`;
+    group.items.forEach(i => {
+        html += `<div class="pl-row pl-ledger-row"><span>${i.name}</span><span>${i.bal.toFixed(2)}</span></div>`;
+    });
+    return html;
+}
