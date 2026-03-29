@@ -111,3 +111,35 @@ select {
     width: 100%;
     appearance: none; /* Modern mobile look */
 }
+/* Voucher Specifics */
+.voucher-type-selector {
+    display: flex;
+    gap: 5px;
+    margin-bottom: 20px;
+    background: #E2E8F0;
+    padding: 5px;
+    border-radius: 10px;
+}
+
+.v-btn {
+    flex: 1;
+    padding: 8px;
+    border: none;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: bold;
+    cursor: pointer;
+    background: transparent;
+    color: #475569;
+}
+
+.v-btn.active {
+    background: white;
+    color: var(--tally-primary);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+/* Tally colors for different headers */
+.bg-payment { background-color: #F43F5E !important; } /* Reddish */
+.bg-receipt { background-color: #10B981 !important; } /* Green */
+.bg-contra { background-color: #F59E0B !important; }  /* Amber */
