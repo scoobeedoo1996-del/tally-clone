@@ -36,14 +36,33 @@ async function openLedgers() {
 
 async function openVoucherEntry() {
     showVoucherScreen();
-    setVoucherType('Payment');
+    // Default to today's date
+    document.getElementById('v_date').valueAsDate = new Date();
+    // Call setVoucherType to initialize numbering and ledgers
+    await setVoucherType('Payment');
 }
 
-function setVoucherType(type, btn) {
+async function setVoucherType(type, btn) {
     currentVoucherType = type;
-    updateVoucherUI(type);
-    loadVoucherLedgers(type);
     
+    // 1. UI Updates (Header & Labels)
+    updateVoucherUI(type);
+    
+    // 2. Dynamic Numbering (Tally Logic)
+    const nextNo = await getNextVoucherNumber(type);
+    document.getElementById('v_number').value = nextNo;
+    
+    // 3. Load Filtered Ledgers
+    await loadVoucherLedgers(type);
+    
+    // 4. Button highlighting
     document.querySelectorAll('.v-btn').forEach(b => b.classList.remove('active'));
     if(btn) btn.classList.add('active');
+    else {
+        // Find button by text if called programmatically
+        const buttons = document.querySelectorAll('.v-btn');
+        buttons.forEach(b => {
+            if(b.innerText.includes(type.substring(0,4))) b.classList.add('active');
+        });
+    }
 }
