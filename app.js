@@ -13,17 +13,29 @@ async function loadCompanies() {
     const { data, error } = await supabaseClient.from('companies').select('*').order('name');
     if (error) return;
     
+    // UPDATE: We are now passing the books_start date to the selectCompany function
     list.innerHTML = data.map(c => `
-        <div class="company-card" onclick="selectCompany('${c.id}', '${c.name}')">
+        <div class="company-card" onclick="selectCompany('${c.id}', '${c.name}', '${c.books_beginning_from}', '${c.financial_year_start}')">
             <div class="company-info"><b>${c.name}</b></div>
             <div class="arrow">❯</div>
         </div>
     `).join('');
 }
 
-function selectCompany(id, name) {
-    currentCompany = { id, name };
+// UPDATE: We now capture the dates and save them to the global currentCompany object
+function selectCompany(id, name, booksStart, fyStart) {
+    currentCompany = { 
+        id: id, 
+        name: name,
+        books_beginning_from: booksStart,
+        financial_year_start: fyStart
+    };
+    
     document.getElementById('active-company-name').innerText = name;
+    
+    // Bonus: Update the UI to show the actual financial year!
+    document.getElementById('active-company-period').innerText = `Books from: ${booksStart}`;
+    
     showDashboard();
 }
 
