@@ -85,3 +85,19 @@ async function jumpToLedger(ledgerId) {
     // 4. Run the report
     await loadLedgerStatement();
 }
+async function openBalanceSheet() {
+    // 1. Guard check
+    if (!currentCompany) return;
+
+    // 2. UI Transitions
+    hideAllScreens();
+    const screen = document.getElementById('balancesheet-screen');
+    if (screen) screen.classList.remove('hidden');
+
+    // 3. Set default date to today
+    const dateInput = document.getElementById('bs_date');
+    if (dateInput) dateInput.valueAsDate = new Date();
+
+    // 4. Run the calculation logic
+    await loadBalanceSheet();
+}
