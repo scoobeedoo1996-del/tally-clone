@@ -493,7 +493,6 @@ async function loadBalanceSheet() {
 
     container.innerHTML = "Calculating...";
 
-    // 1. Fetch data
     const { data: ledgers } = await supabaseClient
         .from('ledgers')
         .select('id, name, opening_balance, opening_balance_type, groups(nature)')
@@ -507,14 +506,18 @@ async function loadBalanceSheet() {
 
     let assets = [], liabilities = [];
     let totalA = 0, totalL = 0;
+    
+    // NEW: Variables for Profit tracking
+    let totalIncome = 0, totalExpense = 0;
 
     ledgers.forEach(l => {
-        // FIX: Using .startsWith handles both "Asset" and "Assets"
         const nature = (l.groups?.nature || "").toLowerCase();
+        
+        // Identify all 4 primary accounting natures
         const isAsset = nature.startsWith('asset');
         const isLiab = nature.startsWith('liabilit');
-
-        if (!isAsset && !isLiab) return;
+        const isIncome = nature.startsWith('income') || nature.startsWith('revenue');
+        const isExpense = nature.startsWith('expense');
 
         let bal = parseFloat(l.opening_balance) || 0;
         let isDr = l.opening_balance_type === 'Dr';
@@ -530,18 +533,40 @@ async function loadBalanceSheet() {
 
         if (bal === 0) return;
 
+        // Categorize balances
         if (isAsset) {
             const final = isDr ? bal : -bal;
             assets.push({ name: l.name, amount: final });
             totalA += final;
-        } else {
+        } else if (isLiab) {
             const final = isDr ? -bal : bal;
             liabilities.push({ name: l.name, amount: final });
             totalL += final;
+        } else if (isIncome) {
+            // Income is normally a Credit balance
+            totalIncome += isDr ? -bal : bal;
+        } else if (isExpense) {
+            // Expenses are normally a Debit balance
+            totalExpense += isDr ? bal : -bal;
         }
     });
 
-    // 2. Render Integrated UI (No external helper function needed)
+    // NEW: Calculate Net Profit
+    const netProfit = totalIncome - totalExpense;
+    
+    // Inject Profit into the correct side of the Balance Sheet
+    let profitHtmlLiab = '';
+    let profitHtmlAsset = '';
+    
+    if (netProfit > 0) {
+        profitHtmlLiab = `<div class="bs-row" style="display:flex; justify-content:space-between; padding:4px 0; color:#059669; font-weight:bold;"><span>Profit & Loss A/c</span><span>${netProfit.toFixed(2)}</span></div>`;
+        totalL += netProfit;
+    } else if (netProfit < 0) {
+        profitHtmlAsset = `<div class="bs-row" style="display:flex; justify-content:space-between; padding:4px 0; color:#dc2626; font-weight:bold;"><span>Profit & Loss A/c (Loss)</span><span>${Math.abs(netProfit).toFixed(2)}</span></div>`;
+        totalA += Math.abs(netProfit);
+    }
+
+    // Render UI (Notice the Profit HTML variables added below)
     container.innerHTML = `
         <div class="bs-grid" style="display:flex; border:1px solid #ccc; background:#fff;">
             <div style="flex:1; border-right:1px solid #ccc; padding:10px;">
@@ -549,16 +574,18 @@ async function loadBalanceSheet() {
                     <span>Liabilities</span><span>${totalL.toFixed(2)}</span>
                 </div>
                 ${liabilities.map(i => `<div class="bs-row" style="display:flex; justify-content:space-between; padding:4px 0;"><span>${i.name}</span><span>${i.amount.toFixed(2)}</span></div>`).join('')}
+                ${profitHtmlLiab}
             </div>
             <div style="flex:1; padding:10px;">
                 <div style="font-weight:bold; border-bottom:2px solid #333; display:flex; justify-content:space-between;">
                     <span>Assets</span><span>${totalA.toFixed(2)}</span>
                 </div>
                 ${assets.map(i => `<div class="bs-row" style="display:flex; justify-content:space-between; padding:4px 0;"><span>${i.name}</span><span>${i.amount.toFixed(2)}</span></div>`).join('')}
+                ${profitHtmlAsset}
             </div>
         </div>
-        <div style="background:#334155; color:white; padding:10px; text-align:right;">
-            Difference: ${(totalA - totalL).toFixed(2)}
+        <div style="background:${Math.abs(totalA - totalL) < 0.01 ? '#059669' : '#dc2626'}; color:white; padding:10px; text-align:right; font-weight:bold;">
+            Difference: ${Math.abs(totalA - totalL).toFixed(2)}
         </div>
     `;
 }
