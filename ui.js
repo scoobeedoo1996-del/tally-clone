@@ -67,42 +67,6 @@ function showDayBookScreen() {
     document.getElementById('daybook-screen').classList.remove('hidden');
 }
 
-async function jumpToLedger(ledgerId) {
-    console.log("Jumping to ledger ID:", ledgerId);
-    if (!ledgerId || ledgerId === 'undefined') {
-        alert("Invalid Ledger ID");
-        return;
-    }
-
-    // 1. Hide everything
-    hideAllScreens();
-
-    // 2. Try to show the screen - Check if ID matches exactly!
-    const targetScreen = document.getElementById('ledger-statement-screen');
-    if (!targetScreen) {
-        console.error("Target screen 'ledger-statement-screen' not found in HTML!");
-        showDashboard(); // Emergency fallback
-        return;
-    }
-    targetScreen.classList.remove('hidden');
-
-    // 3. Update filters (Using your specific IDs from previous code)
-    const select = document.getElementById('stmt_ledger_select');
-    const startInput = document.getElementById('stmt_start_date');
-    const endInput = document.getElementById('stmt_end_date');
-
-    if (select) select.value = ledgerId;
-    if (startInput) startInput.value = currentCompany.books_beginning_from;
-    if (endInput) endInput.valueAsDate = new Date();
-
-    // 4. Run the report logic
-    try {
-        await loadLedgerStatement();
-    } catch (err) {
-        console.error("Failed to load statement:", err);
-        targetScreen.innerHTML += `<p style="color:red">Error loading report: ${err.message}</p>`;
-    }
-}
 async function openBalanceSheet() {
     // 1. Guard check
     if (!currentCompany) return;
