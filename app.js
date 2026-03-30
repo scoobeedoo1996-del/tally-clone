@@ -6,22 +6,7 @@ document.addEventListener('DOMContentLoaded', () => {
     loadCompanies();
     document.getElementById('create-ledger-form').addEventListener('submit', handleLedgerSubmit);
     document.getElementById('voucher-form').addEventListener('submit', handleVoucherSubmit);
-    // Add this inside your existing document.addEventListener('DOMContentLoaded', () => { ... }) block
-document.getElementById('ledger_group').addEventListener('change', function() {
-    // Get the name of the group selected (e.g., "Cash-in-Hand" or "Sundry Debtors")
-    const selectedText = this.options[this.selectedIndex].text;
-    const detailsDiv = document.getElementById('smart-ledger-details');
-
-    // Check if it's a group that needs extra details
-    if (selectedText === 'Sundry Debtors' || selectedText === 'Sundry Creditors' || selectedText === 'Bank Accounts') {
-        detailsDiv.style.display = 'block'; // Show the fields
-    } else {
-        detailsDiv.style.display = 'none';  // Hide the fields
-        // Clear the data so we don't accidentally save an address to a "Rent Expense" ledger
-        document.getElementById('ledger_address').value = '';
-        document.getElementById('ledger_pan').value = '';
-    }
-});
+    document.getElementById('ledger_group').addEventListener('change', toggleSmartLedgerFields);
 });
 
 async function loadCompanies() {
@@ -58,9 +43,35 @@ function selectCompany(id, name, booksStart, fyStart) {
 async function openLedgers() {
     showLedgerScreen();
     const { data } = await supabaseClient.from('groups').select('id, name').order('name');
+    
     document.getElementById('ledger_group').innerHTML = data.map(g => `<option value="${g.id}">${g.name}</option>`).join('');
+    
+    // NEW: Trigger the check immediately so the UI is correct on load
+    toggleSmartLedgerFields(); 
 }
+function toggleSmartLedgerFields() {
+    const groupSelect = document.getElementById('ledger_group');
+    const detailsDiv = document.getElementById('smart-ledger-details');
 
+    // Safety check: Ensure the dropdown has options loaded
+    if (!groupSelect || groupSelect.selectedIndex === -1) return;
+
+    // Get the text, make it lowercase, and trim spaces to prevent mismatch errors
+    const selectedText = groupSelect.options[groupSelect.selectedIndex].text.toLowerCase().trim();
+
+    // Check against the cleaned text
+    if (selectedText === 'sundry debtors' || selectedText === 'sundry creditors' || selectedText === 'bank accounts') {
+        detailsDiv.style.display = 'block'; // Show fields
+    } else {
+        detailsDiv.style.display = 'none';  // Hide fields
+        
+        // Clear inputs safely
+        const addr = document.getElementById('ledger_address');
+        const pan = document.getElementById('ledger_pan');
+        if(addr) addr.value = '';
+        if(pan) pan.value = '';
+    }
+}
 async function openVoucherEntry() {
     showVoucherScreen();
     // Default to today's date
