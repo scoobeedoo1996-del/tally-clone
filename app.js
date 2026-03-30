@@ -4,7 +4,6 @@ let currentVoucherType = 'Payment';
 
 document.addEventListener('DOMContentLoaded', () => {
     loadCompanies();
-    document.getElementById('create-company-form').addEventListener('submit', handleCompanySubmit);
     document.getElementById('create-ledger-form').addEventListener('submit', handleLedgerSubmit);
     document.getElementById('voucher-form').addEventListener('submit', handleVoucherSubmit);
 });
