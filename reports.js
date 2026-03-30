@@ -159,7 +159,7 @@ async function loadLedgerStatement() {
     const periodOpening = { amount: runningBal, type: isRunningDr ? 'Dr' : 'Cr' };
 
     // 3. Fetch entries WITHIN the period (Your existing logic)
-    const { data: currentEntries } = await supabaseClient
+const { data: currentEntries } = await supabaseClient
         .from('voucher_entries')
         .select(`
             amount, is_debit,
@@ -170,20 +170,26 @@ async function loadLedgerStatement() {
         .lte('vouchers.voucher_date', endDate)
         .order('vouchers(voucher_date)', { ascending: true });
 
-    // Fetch related ledger names for "Particulars"
-    const vIds = currentEntries.map(e => e.vouchers.id);
-    const { data: relatives } = await supabaseClient
-        .from('voucher_entries')
-        .select('voucher_id, ledgers(name)')
-        .in('voucher_id', vIds)
-        .neq('ledger_id', ledgerId);
+    // FIX: Safely fetch relatives ONLY if there are transactions
+    const vIds = currentEntries ? currentEntries.map(e => e.vouchers.id) : [];
+    let relatives = [];
+    
+    if (vIds.length > 0) {
+        const { data: relData } = await supabaseClient
+            .from('voucher_entries')
+            .select('voucher_id, ledgers(name)')
+            .in('voucher_id', vIds)
+            .neq('ledger_id', ledgerId);
+            
+        if (relData) relatives = relData;
+    }
 
     const formattedVouchers = currentEntries.map(e => {
         const other = relatives.find(r => r.voucher_id === e.vouchers.id);
         return {
             ...e.vouchers,
             myEntry: { is_debit: e.is_debit, amount: e.amount },
-            particulars: other ? other.ledgers.name : 'Unknown'
+            particulars: other && other.ledgers ? other.ledgers.name : 'Multiple / Unknown'
         };
     });
 
