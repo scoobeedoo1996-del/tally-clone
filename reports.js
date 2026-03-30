@@ -505,7 +505,7 @@ async function loadBalanceSheet() {
 
     ledgers.forEach(l => {
         // Only include Assets and Liabilities (Ignore Income/Expense)
-        if (l.groups.nature !== 'Asset' && l.groups.nature !== 'Liability') return;
+        if (l.groups.nature !== 'Assets' && l.groups.nature !== 'Liabilities') return;
 
         let bal = parseFloat(l.opening_balance) || 0;
         let isDr = l.opening_balance_type === 'Dr';
@@ -522,7 +522,7 @@ async function loadBalanceSheet() {
 
         if (bal !== 0) {
             const item = { name: l.name, amount: bal };
-            if (l.groups.nature === 'Liability') {
+            if (l.groups.nature === 'Liabilities') {
                 bs.liabilities.items.push(item);
                 bs.liabilities.total += (isDr ? -bal : bal); // Cr is positive for Liability
             } else {
