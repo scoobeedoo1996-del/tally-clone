@@ -68,22 +68,40 @@ function showDayBookScreen() {
 }
 
 async function jumpToLedger(ledgerId) {
-    if (!ledgerId || ledgerId === 'undefined') return;
+    console.log("Jumping to ledger ID:", ledgerId);
+    if (!ledgerId || ledgerId === 'undefined') {
+        alert("Invalid Ledger ID");
+        return;
+    }
 
-    // 1. Switch to the Ledger Statement screen
+    // 1. Hide everything
     hideAllScreens();
-    document.getElementById('ledger-statement-screen').classList.remove('hidden');
 
-    // 2. Set the Dropdown to the clicked ledger
+    // 2. Try to show the screen - Check if ID matches exactly!
+    const targetScreen = document.getElementById('ledger-statement-screen');
+    if (!targetScreen) {
+        console.error("Target screen 'ledger-statement-screen' not found in HTML!");
+        showDashboard(); // Emergency fallback
+        return;
+    }
+    targetScreen.classList.remove('hidden');
+
+    // 3. Update filters (Using your specific IDs from previous code)
     const select = document.getElementById('stmt_ledger_select');
-    select.value = ledgerId;
+    const startInput = document.getElementById('stmt_start_date');
+    const endInput = document.getElementById('stmt_end_date');
 
-    // 3. Set the Dates (Default to full history from company start to today)
-    document.getElementById('stmt_start_date').value = currentCompany.books_beginning_from;
-    document.getElementById('stmt_end_date').valueAsDate = new Date();
+    if (select) select.value = ledgerId;
+    if (startInput) startInput.value = currentCompany.books_beginning_from;
+    if (endInput) endInput.valueAsDate = new Date();
 
-    // 4. Run the report
-    await loadLedgerStatement();
+    // 4. Run the report logic
+    try {
+        await loadLedgerStatement();
+    } catch (err) {
+        console.error("Failed to load statement:", err);
+        targetScreen.innerHTML += `<p style="color:red">Error loading report: ${err.message}</p>`;
+    }
 }
 async function openBalanceSheet() {
     // 1. Guard check
