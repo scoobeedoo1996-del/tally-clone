@@ -483,9 +483,9 @@ async function loadBalanceSheet() {
     const container = document.getElementById('bs-content');
     if (!currentCompany || !asOnDate) return;
 
-    container.innerHTML = '<p style="text-align:center; padding:20px;">Calculating balances...</p>';
+    container.innerHTML = "Calculating...";
 
-    // 1. Fetch Ledgers with Group Nature (Case-insensitive check)
+    // 1. Fetch data
     const { data: ledgers } = await supabaseClient
         .from('ledgers')
         .select('id, name, opening_balance, opening_balance_type, groups(nature)')
@@ -497,22 +497,21 @@ async function loadBalanceSheet() {
         .eq('vouchers.company_id', currentCompany.id)
         .lte('vouchers.voucher_date', asOnDate);
 
-    // 2. Separate into Assets and Liabilities
-    let assets = [];
-    let liabilities = [];
-    let totalAssets = 0;
-    let totalLiabilities = 0;
+    let assets = [], liabilities = [];
+    let totalA = 0, totalL = 0;
 
     ledgers.forEach(l => {
-        const nature = l.groups?.nature?.toLowerCase();
-        if (nature !== 'asset' && nature !== 'liability') return;
+        // FIX: Using .startsWith handles both "Asset" and "Assets"
+        const nature = (l.groups?.nature || "").toLowerCase();
+        const isAsset = nature.startsWith('asset');
+        const isLiab = nature.startsWith('liabilit');
 
-        // --- Standard Calculation Logic ---
+        if (!isAsset && !isLiab) return;
+
         let bal = parseFloat(l.opening_balance) || 0;
         let isDr = l.opening_balance_type === 'Dr';
-        const myEntries = entries.filter(e => e.ledger_id === l.id);
         
-        myEntries.forEach(e => {
+        entries.filter(e => e.ledger_id === l.id).forEach(e => {
             const amt = parseFloat(e.amount);
             if (e.is_debit === isDr) bal += amt;
             else {
@@ -523,38 +522,35 @@ async function loadBalanceSheet() {
 
         if (bal === 0) return;
 
-        if (nature === 'asset') {
-            const finalAmt = isDr ? bal : -bal;
-            assets.push({ name: l.name, amount: finalAmt });
-            totalAssets += finalAmt;
+        if (isAsset) {
+            const final = isDr ? bal : -bal;
+            assets.push({ name: l.name, amount: final });
+            totalA += final;
         } else {
-            const finalAmt = isDr ? -bal : bal;
-            liabilities.push({ name: l.name, amount: finalAmt });
-            totalLiabilities += finalAmt;
+            const final = isDr ? -bal : bal;
+            liabilities.push({ name: l.name, amount: final });
+            totalL += final;
         }
     });
 
-    // 3. Render the split Tally view
+    // 2. Render Integrated UI (No external helper function needed)
     container.innerHTML = `
-        <div class="bs-grid">
-            <div class="bs-col">
-                <div class="bs-header"><span>Liabilities</span> <span>${totalLiabilities.toFixed(2)}</span></div>
-                ${liabilities.map(i => `<div class="bs-row"><span>${i.name}</span><span>${i.amount.toFixed(2)}</span></div>`).join('')}
+        <div class="bs-grid" style="display:flex; border:1px solid #ccc; background:#fff;">
+            <div style="flex:1; border-right:1px solid #ccc; padding:10px;">
+                <div style="font-weight:bold; border-bottom:2px solid #333; display:flex; justify-content:space-between;">
+                    <span>Liabilities</span><span>${totalL.toFixed(2)}</span>
+                </div>
+                ${liabilities.map(i => `<div class="bs-row" style="display:flex; justify-content:space-between; padding:4px 0;"><span>${i.name}</span><span>${i.amount.toFixed(2)}</span></div>`).join('')}
             </div>
-            <div class="bs-col">
-                <div class="bs-header"><span>Assets</span> <span>${totalAssets.toFixed(2)}</span></div>
-                ${assets.map(i => `<div class="bs-row"><span>${i.name}</span><span>${i.amount.toFixed(2)}</span></div>`).join('')}
+            <div style="flex:1; padding:10px;">
+                <div style="font-weight:bold; border-bottom:2px solid #333; display:flex; justify-content:space-between;">
+                    <span>Assets</span><span>${totalA.toFixed(2)}</span>
+                </div>
+                ${assets.map(i => `<div class="bs-row" style="display:flex; justify-content:space-between; padding:4px 0;"><span>${i.name}</span><span>${i.amount.toFixed(2)}</span></div>`).join('')}
             </div>
         </div>
-        <div class="bs-footer">
-            <span>Difference: ${(totalAssets - totalLiabilities).toFixed(2)}</span>
+        <div style="background:#334155; color:white; padding:10px; text-align:right;">
+            Difference: ${(totalA - totalL).toFixed(2)}
         </div>
     `;
-}
-function renderBSSide(side) {
-    let html = `<h3>${side.label} <span class="pull-right">${side.total.toFixed(2)}</span></h3>`;
-    side.items.forEach(i => {
-        html += `<div class="bs-row"><span>${i.name}</span><span>${i.amount.toFixed(2)}</span></div>`;
-    });
-    return html;
 }
