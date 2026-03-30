@@ -106,38 +106,22 @@ async function setVoucherType(type, btn) {
 }
 
 async function jumpToLedger(ledgerId) {
-    console.log("Jumping to ledger ID:", ledgerId);
-    if (!ledgerId || ledgerId === 'undefined') {
-        alert("Invalid Ledger ID");
-        return;
-    }
+    if (!ledgerId || ledgerId === 'undefined') return alert("Ledger ID missing");
 
-    // 1. Hide everything
+    // 1. Target Screen Check
+    const target = document.getElementById('ledger-statement-screen');
+    if (!target) return alert("System Error: Screen 'ledger-statement-screen' not found in HTML.");
+
+    // 2. Navigation
     hideAllScreens();
+    target.classList.remove('hidden');
 
-    // 2. Try to show the screen - Check if ID matches exactly!
-    const targetScreen = document.getElementById('ledger-statement-screen');
-    if (!targetScreen) {
-        console.error("Target screen 'ledger-statement-screen' not found in HTML!");
-        showDashboard(); // Emergency fallback
-        return;
-    }
-    targetScreen.classList.remove('hidden');
+    // 3. UI Setup
+    document.getElementById('stmt_ledger_select').value = ledgerId;
+    document.getElementById('stmt_start_date').value = currentCompany.books_beginning_from;
+    document.getElementById('stmt_end_date').valueAsDate = new Date();
 
-    // 3. Update filters (Using your specific IDs from previous code)
-    const select = document.getElementById('stmt_ledger_select');
-    const startInput = document.getElementById('stmt_start_date');
-    const endInput = document.getElementById('stmt_end_date');
-
-    if (select) select.value = ledgerId;
-    if (startInput) startInput.value = currentCompany.books_beginning_from;
-    if (endInput) endInput.valueAsDate = new Date();
-
-    // 4. Run the report logic
-    try {
-        await loadLedgerStatement();
-    } catch (err) {
-        console.error("Failed to load statement:", err);
-        targetScreen.innerHTML += `<p style="color:red">Error loading report: ${err.message}</p>`;
-    }
+    // 4. Execution
+    console.log("Loading statement for:", ledgerId);
+    await loadLedgerStatement();
 }
