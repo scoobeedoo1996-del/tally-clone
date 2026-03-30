@@ -15,69 +15,6 @@
                 <p>TallyPrime Cloud Access</p>
             </header>
             <div id="company-list" class="list-container"></div>
-            <button id="fab" class="fab" onclick="showCreateScreen()">+</button>
-        </div>
-
-        <div id="create-screen" class="screen hidden">
-            <header class="tally-header header-nav">
-                <button class="back-btn" onclick="hideCreateScreen()">❮ Back</button>
-                <h1>Company Creation</h1>
-            </header>
-            
-            <div class="form-container">
-                <form id="create-company-form">
-                    <div class="section-title">Company Directory</div>
-                    <div class="input-group">
-                        <label>Company Name *</label>
-                        <input type="text" id="company_name" required placeholder="e.g. My Awesome Business">
-                    </div>
-                    <div class="input-group">
-                        <label>Mailing Name</label>
-                        <input type="text" id="mailing_name">
-                    </div>
-                    <div class="input-group">
-                        <label>Address</label>
-                        <textarea id="address" rows="3"></textarea>
-                    </div>
-
-                    <div class="row">
-                        <div class="input-group half">
-                            <label>State</label>
-                            <input type="text" id="state">
-                        </div>
-                        <div class="input-group half">
-                            <label>Country</label>
-                            <input type="text" id="country" value="India">
-                        </div>
-                    </div>
-
-                    <div class="section-title">Contact Details</div>
-                    <div class="row">
-                        <div class="input-group half">
-                            <label>Mobile No.</label>
-                            <input type="tel" id="mobile">
-                        </div>
-                        <div class="input-group half">
-                            <label>Email</label>
-                            <input type="email" id="email">
-                        </div>
-                    </div>
-
-                    <div class="section-title">Books and Financial Year Details</div>
-                    <div class="row">
-                        <div class="input-group half">
-                            <label>Financial Year Begins From *</label>
-                            <input type="date" id="fy_start" required>
-                        </div>
-                        <div class="input-group half">
-                            <label>Books Beginning From *</label>
-                            <input type="date" id="books_start" required>
-                        </div>
-                    </div>
-
-                    <button type="submit" class="submit-btn" id="save-btn">Accept (Save)</button>
-                </form>
-            </div>
         </div>
         <div id="dashboard-screen" class="screen hidden">
     <header class="tally-header">
