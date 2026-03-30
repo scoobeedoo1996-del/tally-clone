@@ -39,10 +39,6 @@ function hideVoucherScreen() {
     showDashboard();
 }
 
-function hideCreateScreen() {
-    showMainScreen();
-}
-
 // --- Visual Feedback ---
 
 function updateVoucherUI(type) {
