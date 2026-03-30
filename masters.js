@@ -1,22 +1,4 @@
 // masters.js - Company & Ledger Logic
-async function handleCompanySubmit(e) {
-    e.preventDefault();
-    const btn = e.target.querySelector('button');
-    btn.disabled = true;
-
-    const data = {
-        name: document.getElementById('company_name').value,
-        mailing_name: document.getElementById('mailing_name').value || document.getElementById('company_name').value,
-        financial_year_start: document.getElementById('fy_start').value,
-        address: document.getElementById('address').value,
-        state: document.getElementById('state').value
-    };
-
-    const { error } = await supabaseClient.from('companies').insert([data]);
-    if (!error) { showMainScreen(); loadCompanies(); }
-    btn.disabled = false;
-}
-
 async function handleLedgerSubmit(e) {
     e.preventDefault();
     if (!currentCompany) return;
