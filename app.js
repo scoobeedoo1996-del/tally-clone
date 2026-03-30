@@ -109,7 +109,7 @@ async function jumpToLedger(ledgerId) {
     if (!ledgerId || ledgerId === 'undefined') return alert("Ledger ID missing");
 
     // 1. Target Screen Check
-    const target = document.getElementById('ledger-statement-screen');
+    const target = document.getElementById('statement-screen');
     if (!target) return alert("System Error: Screen 'ledger-statement-screen' not found in HTML.");
 
     // 2. Navigation
