@@ -481,14 +481,14 @@ function renderPLGroup(group) {
 async function loadBalanceSheet() {
     const asOnDate = document.getElementById('bs_date').value;
     const container = document.getElementById('bs-content');
-
     if (!currentCompany || !asOnDate) return;
-    container.innerHTML = "Calculating Balance Sheet...";
 
-    // 1. Fetch Ledgers and Entries (Similar to Trial Balance)
+    container.innerHTML = '<p style="text-align:center; padding:20px;">Calculating balances...</p>';
+
+    // 1. Fetch Ledgers with Group Nature (Case-insensitive check)
     const { data: ledgers } = await supabaseClient
         .from('ledgers')
-        .select('id, name, opening_balance, opening_balance_type, groups(name, nature)')
+        .select('id, name, opening_balance, opening_balance_type, groups(nature)')
         .eq('company_id', currentCompany.id);
 
     const { data: entries } = await supabaseClient
@@ -497,20 +497,21 @@ async function loadBalanceSheet() {
         .eq('vouchers.company_id', currentCompany.id)
         .lte('vouchers.voucher_date', asOnDate);
 
-    // 2. Categories
-    const bs = {
-        liabilities: { label: "Liabilities", items: [], total: 0 },
-        assets: { label: "Assets", items: [], total: 0 }
-    };
+    // 2. Separate into Assets and Liabilities
+    let assets = [];
+    let liabilities = [];
+    let totalAssets = 0;
+    let totalLiabilities = 0;
 
     ledgers.forEach(l => {
-        // Only include Assets and Liabilities (Ignore Income/Expense)
-        if (l.groups.nature !== 'Assets' && l.groups.nature !== 'Liabilities') return;
+        const nature = l.groups?.nature?.toLowerCase();
+        if (nature !== 'asset' && nature !== 'liability') return;
 
+        // --- Standard Calculation Logic ---
         let bal = parseFloat(l.opening_balance) || 0;
         let isDr = l.opening_balance_type === 'Dr';
-
         const myEntries = entries.filter(e => e.ledger_id === l.id);
+        
         myEntries.forEach(e => {
             const amt = parseFloat(e.amount);
             if (e.is_debit === isDr) bal += amt;
@@ -520,30 +521,36 @@ async function loadBalanceSheet() {
             }
         });
 
-        if (bal !== 0) {
-            const item = { name: l.name, amount: bal };
-            if (l.groups.nature === 'Liabilities') {
-                bs.liabilities.items.push(item);
-                bs.liabilities.total += (isDr ? -bal : bal); // Cr is positive for Liability
-            } else {
-                bs.assets.items.push(item);
-                bs.assets.total += (isDr ? bal : -bal); // Dr is positive for Asset
-            }
+        if (bal === 0) return;
+
+        if (nature === 'asset') {
+            const finalAmt = isDr ? bal : -bal;
+            assets.push({ name: l.name, amount: finalAmt });
+            totalAssets += finalAmt;
+        } else {
+            const finalAmt = isDr ? -bal : bal;
+            liabilities.push({ name: l.name, amount: finalAmt });
+            totalLiabilities += finalAmt;
         }
     });
 
-    // 3. Render Table
+    // 3. Render the split Tally view
     container.innerHTML = `
         <div class="bs-grid">
-            <div class="bs-col">${renderBSSide(bs.liabilities)}</div>
-            <div class="bs-col">${renderBSSide(bs.assets)}</div>
+            <div class="bs-col">
+                <div class="bs-header"><span>Liabilities</span> <span>${totalLiabilities.toFixed(2)}</span></div>
+                ${liabilities.map(i => `<div class="bs-row"><span>${i.name}</span><span>${i.amount.toFixed(2)}</span></div>`).join('')}
+            </div>
+            <div class="bs-col">
+                <div class="bs-header"><span>Assets</span> <span>${totalAssets.toFixed(2)}</span></div>
+                ${assets.map(i => `<div class="bs-row"><span>${i.name}</span><span>${i.amount.toFixed(2)}</span></div>`).join('')}
+            </div>
         </div>
         <div class="bs-footer">
-            <span>Difference: ${(bs.assets.total - bs.liabilities.total).toFixed(2)}</span>
+            <span>Difference: ${(totalAssets - totalLiabilities).toFixed(2)}</span>
         </div>
     `;
 }
-
 function renderBSSide(side) {
     let html = `<h3>${side.label} <span class="pull-right">${side.total.toFixed(2)}</span></h3>`;
     side.items.forEach(i => {
