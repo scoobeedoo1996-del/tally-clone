@@ -66,3 +66,22 @@ function showDayBookScreen() {
     hideAllScreens();
     document.getElementById('daybook-screen').classList.remove('hidden');
 }
+
+async function jumpToLedger(ledgerId) {
+    if (!ledgerId || ledgerId === 'undefined') return;
+
+    // 1. Switch to the Ledger Statement screen
+    hideAllScreens();
+    document.getElementById('ledger-statement-screen').classList.remove('hidden');
+
+    // 2. Set the Dropdown to the clicked ledger
+    const select = document.getElementById('stmt_ledger_select');
+    select.value = ledgerId;
+
+    // 3. Set the Dates (Default to full history from company start to today)
+    document.getElementById('stmt_start_date').value = currentCompany.books_beginning_from;
+    document.getElementById('stmt_end_date').valueAsDate = new Date();
+
+    // 4. Run the report
+    await loadLedgerStatement();
+}
