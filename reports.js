@@ -476,3 +476,76 @@ function renderPLGroup(group) {
     });
     return html;
 }
+async function loadBalanceSheet() {
+    const asOnDate = document.getElementById('bs_date').value;
+    const container = document.getElementById('bs-content');
+
+    if (!currentCompany || !asOnDate) return;
+    container.innerHTML = "Calculating Balance Sheet...";
+
+    // 1. Fetch Ledgers and Entries (Similar to Trial Balance)
+    const { data: ledgers } = await supabaseClient
+        .from('ledgers')
+        .select('id, name, opening_balance, opening_balance_type, groups(name, nature)')
+        .eq('company_id', currentCompany.id);
+
+    const { data: entries } = await supabaseClient
+        .from('voucher_entries')
+        .select('ledger_id, amount, is_debit, vouchers!inner(voucher_date)')
+        .eq('vouchers.company_id', currentCompany.id)
+        .lte('vouchers.voucher_date', asOnDate);
+
+    // 2. Categories
+    const bs = {
+        liabilities: { label: "Liabilities", items: [], total: 0 },
+        assets: { label: "Assets", items: [], total: 0 }
+    };
+
+    ledgers.forEach(l => {
+        // Only include Assets and Liabilities (Ignore Income/Expense)
+        if (l.groups.nature !== 'Asset' && l.groups.nature !== 'Liability') return;
+
+        let bal = parseFloat(l.opening_balance) || 0;
+        let isDr = l.opening_balance_type === 'Dr';
+
+        const myEntries = entries.filter(e => e.ledger_id === l.id);
+        myEntries.forEach(e => {
+            const amt = parseFloat(e.amount);
+            if (e.is_debit === isDr) bal += amt;
+            else {
+                bal -= amt;
+                if (bal < 0) { bal = Math.abs(bal); isDr = !isDr; }
+            }
+        });
+
+        if (bal !== 0) {
+            const item = { name: l.name, amount: bal };
+            if (l.groups.nature === 'Liability') {
+                bs.liabilities.items.push(item);
+                bs.liabilities.total += (isDr ? -bal : bal); // Cr is positive for Liability
+            } else {
+                bs.assets.items.push(item);
+                bs.assets.total += (isDr ? bal : -bal); // Dr is positive for Asset
+            }
+        }
+    });
+
+    // 3. Render Table
+    container.innerHTML = `
+        <div class="bs-grid">
+            <div class="bs-col">${renderBSSide(bs.liabilities)}</div>
+            <div class="bs-col">${renderBSSide(bs.assets)}</div>
+        </div>
+        <div class="bs-footer">
+            <span>Difference: ${(bs.assets.total - bs.liabilities.total).toFixed(2)}</span>
+        </div>
+    `;
+}
+
+function renderBSSide(side) {
+    let html = `<h3>${side.label} <span class="pull-right">${side.total.toFixed(2)}</span></h3>`;
+    side.items.forEach(i => {
+        html += `<div class="bs-row"><span>${i.name}</span><span>${i.amount.toFixed(2)}</span></div>`;
+    });
+    return html;
+}
