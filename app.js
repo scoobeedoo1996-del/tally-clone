@@ -110,18 +110,31 @@ async function jumpToLedger(ledgerId) {
 
     // 1. Target Screen Check
     const target = document.getElementById('statement-screen');
-    if (!target) return alert("System Error: Screen 'ledger-statement-screen' not found in HTML.");
+    if (!target) return alert("System Error: Screen 'statement-screen' not found.");
 
     // 2. Navigation
     hideAllScreens();
     target.classList.remove('hidden');
 
-    // 3. UI Setup
-    document.getElementById('stmt_ledger_select').value = ledgerId;
+    // 3. UI Setup (Dates)
     document.getElementById('stmt_start_date').value = currentCompany.books_beginning_from;
     document.getElementById('stmt_end_date').valueAsDate = new Date();
 
-    // 4. Execution
+    // 4. FIX: Ensure Dropdown has the Ledger before setting value
+    const select = document.getElementById('stmt_ledger_select');
+    
+    // Fetch the name quickly to populate the dropdown
+    const { data: ledger } = await supabaseClient.from('ledgers').select('name').eq('id', ledgerId).single();
+    
+    if (ledger) {
+        // Create the option if it doesn't exist yet
+        if (!select.querySelector(`option[value="${ledgerId}"]`)) {
+            select.innerHTML = `<option value="${ledgerId}">${ledger.name}</option>` + select.innerHTML;
+        }
+        select.value = ledgerId;
+    }
+
+    // 5. Execution
     console.log("Loading statement for:", ledgerId);
     await loadLedgerStatement();
 }
