@@ -232,41 +232,27 @@ select {
 .text-loss { color: #dc2626; font-weight: bold; }
 .bs-grid {
     display: flex;
-    gap: 0;
+    background: #f8fafc;
     border: 1px solid #cbd5e1;
-    background: white;
-    margin-top: 10px;
+    min-height: 300px;
 }
-
 .bs-col {
     flex: 1;
+    padding: 10px;
     border-right: 1px solid #cbd5e1;
-    padding: 15px;
 }
-
-.bs-col:last-child {
-    border-right: none;
-}
-
-.bs-col h3 {
+.bs-col:last-child { border-right: none; }
+.bs-header {
+    font-weight: bold;
     border-bottom: 2px solid #334155;
-    padding-bottom: 10px;
-    margin-bottom: 15px;
     display: flex;
     justify-content: space-between;
+    padding-bottom: 5px;
+    margin-bottom: 10px;
 }
-
 .bs-row {
     display: flex;
     justify-content: space-between;
-    padding: 5px 0;
-    font-size: 14px;
-}
-
-.bs-footer {
-    background: #334155;
-    color: white;
-    padding: 10px 15px;
-    text-align: right;
-    font-weight: bold;
+    font-size: 0.9em;
+    padding: 3px 0;
 }
