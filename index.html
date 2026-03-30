@@ -291,6 +291,16 @@
             </div>
     </div>
 </div>
+    <div id="balancesheet-screen" class="screen hidden">
+    <header class="tally-header header-nav">
+        <button class="back-btn" onclick="showDashboard()">❮ Back</button>
+        <h1>Balance Sheet</h1>
+        <input type="date" id="bs_date" onchange="loadBalanceSheet()">
+    </header>
+
+    <div id="bs-content" class="report-container">
+        </div>
+</div>
     </div>
 
 <script src="supabaseClient.js?v=2"></script>
