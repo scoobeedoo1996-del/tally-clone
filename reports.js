@@ -64,9 +64,12 @@ async function loadDayBookData() {
         return `
             <div class="db-card" style="border-left: 4px solid var(--${v.voucher_type.toLowerCase()}-color, #64748b);">
                 <div class="db-row db-header">
-                   <span class="db-ledger" onclick="jumpToLedger('${ledgerId}')" style="cursor:pointer; color:#2563eb;">
-                   <b>${ledgerName}</b>
-                   </span>
+                   // Inside your Day Book map function:
+        <span class="db-ledger-link" 
+                onclick="event.stopPropagation(); jumpToLedger('${displayEntry.ledger_id}')" 
+                style="cursor:pointer; color:#2563eb; font-weight:bold; text-decoration:underline;">
+              ${ledgerName}
+       </span>
                     <span class="db-amount">₹ ${parseFloat(amount).toFixed(2)}</span>
                 </div>
                 <div class="db-row db-sub">
