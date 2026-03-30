@@ -30,7 +30,7 @@ async function loadDayBookData() {
         .from('vouchers')
         .select(`
             id, voucher_type, voucher_number, voucher_date, narration,
-            voucher_entries ( amount, is_debit, ledgers ( name ) )
+            voucher_entries ( ledger_id,amount, is_debit, ledgers ( name ) )
         `)
         .eq('company_id', currentCompany.id)
         .eq('voucher_date', filterDate)
