@@ -60,11 +60,13 @@ async function loadDayBookData() {
 
         const ledgerName = displayEntry?.ledgers?.name || 'Multiple Ledgers';
         const amount = displayEntry?.amount || v.voucher_entries[0]?.amount || 0;
-
+        const ledgerId = displayEntry?.ledger_id;
         return `
             <div class="db-card" style="border-left: 4px solid var(--${v.voucher_type.toLowerCase()}-color, #64748b);">
                 <div class="db-row db-header">
-                    <span class="db-ledger"><b>${ledgerName}</b></span>
+                   <span class="db-ledger" onclick="jumpToLedger('${ledgerId}')" style="cursor:pointer; color:#2563eb;">
+                   <b>${ledgerName}</b>
+                   </span>
                     <span class="db-amount">₹ ${parseFloat(amount).toFixed(2)}</span>
                 </div>
                 <div class="db-row db-sub">
